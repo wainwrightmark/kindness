@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
-#![allow(missing_docs)]
-#![allow(warnings, dead_code, unused_imports, unused_mut)]
+// #![deny(missing_docs)]
+// #![deny(warnings, dead_code, unused_imports, unused_mut)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
 //!
@@ -20,11 +20,12 @@
 //! ```no_run
 //! use kindness::*;
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     println!("Hello world!");
-//!
-//!     Ok(())
+//! 
+//! fn main()  {
+//!     use rand::SeedableRng;
+//!     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
+//!     let m =[3,2,1,2,3].iter().random_max(&mut rng).unwrap();
+//!     assert_eq!(*m, 3)
 //! }
 //! ```
 //!
@@ -41,51 +42,7 @@
 //! [crates.io]: https://crates.io/crates/kindness
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
-use rand::Rng;
-
-/// Return a random element of the iterable.  
-/// Returns none if the iterable is empty.  
-/// Panics if the iterator has more than usize::Max elements.
-/// Will iterate the entire enumerable unless it has a size hint which indicates an exact length
-///
-/// ```no_run
-/// use kindness::random_element;
-///
-/// assert_eq!(random_element(0..10), Some(7)); //example value
-/// ```
-pub fn random_element<I, R: rand::RngCore>(iterable: I, rng: &mut R) -> Option<I::Item>
-where
-    I: IntoIterator,
-{
-    let mut iterator = iterable.into_iter();
-    if let (lower, Some(upper)) = iterator.size_hint() {
-        if lower == upper {
-            //the iterator has an exact size
-            if lower == 0 {
-                return None;
-            } else {
-                let n = rng.gen_range(0..upper);
-                return iterator.nth(n);
-            }
-        }
-    }
-
-    let Some(first)  = iterator.next() else {
-        return None;
-    };
-
-    let mut current = first;
-    let mut count: usize = 1;
-
-    for i in iterator {
-        count += 1;
-        if rng.gen_range(0..count) == 0 {
-            current = i;
-        }
-    }
-
-    Some(current)
-}
+use core::cmp::Ordering;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -98,31 +55,177 @@ where
     /// Return a random element of the iterator.  
     /// Returns none if the iterator is empty.  
     /// Panics if the iterator has more than usize::Max elements.
-    /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length
+    /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
+    fn random_element<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
+        if let (lower, Some(upper)) = self.size_hint() {
+            if lower == upper {
+                //the iterator has an exact size, so we don't need to iterate the whole thing.
+                if lower == 0 {
+                    return None;
+                } else {
+                    let n = rng.gen_range(0..upper);
+                    return self.nth(n);
+                }
+            }
+        }
+
+        let Some(first)  = self.next() else {
+            return None; //The iterator is empty
+        };
+
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            count += 1;
+            if rng.gen_range(0..count) == 0 {
+                //We only change to a new item if the index is 0.
+                // This has a (1 / count) probability of happening.
+                // This ensures that every element has an equal probability of being returned.
+                // The first element has (1/2) * (2/3) .. (n-2/n-1)  (n-1/n) = (1/n) probability of being returned
+                // The kth element has (1/k+1) * (k+1/k+2) .. (n-2/n-1)  (n-1/n) = (1/n) probability of being returned
+                current = item;
+            }
+        }
+
+        Some(current)
+    }
+
+    /// Returns a random maximum element with respect to the specified comparison function.
     ///
-    /// ```no_run
-    /// use kindness::random_element;
+    /// If the iterator is empty, [`None`] is returned.
+    /// Panics if the iterator has more than usize::Max maximum elements.
+    fn random_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
+    where
+        Self::Item: Ord,
+    {
+        self.random_max_by(rng, Ord::cmp)
+    }
+
+    /// Returns a random maximum element.
     ///
-    /// assert_eq!(random_element(0..10), Some(7)); //example value
-    /// ```
-    fn random_element<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item> {
-        random_element(self, rng)
+    /// If the iterator is empty, [`None`] is returned.
+    /// Panics if the iterator has more than usize::Max maximum elements.
+    fn random_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+        mut self,
+        rng: &mut R,
+        mut compare: F,
+    ) -> Option<Self::Item>
+    where
+        Self::Item: Ord,
+    {
+        let Some(first)  = self.next() else {
+        return None;
+    };
+
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            match compare(&item, &current) {
+                core::cmp::Ordering::Less => {}
+                core::cmp::Ordering::Equal => {
+                    //Choose either iter or current randomly, see random_element for more
+                    count += 1;
+                    if rng.gen_range(0..count) == 0 {
+                        current = item;
+                    }
+                }
+                core::cmp::Ordering::Greater => {
+                    current = item; //this is the new maximum
+                    count = 1;
+                }
+            }
+        }
+
+        Some(current)
+    }
+
+    /// Return a random minimum element of the iterator.  
+    /// Returns none if the iterator is empty.  
+    /// Panics if the iterator has more than usize::Max elements.
+    fn random_min<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item>
+    where
+        Self::Item: Ord,
+    {
+        let Some(first)  = self.next() else {
+        return None;
+    };
+
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            match item.cmp(&current) {
+                core::cmp::Ordering::Greater => {}
+                core::cmp::Ordering::Equal => {
+                    //Choose either iter or current randomly, see random_element for more
+                    count += 1;
+                    if rng.gen_range(0..count) == 0 {
+                        current = item;
+                    }
+                }
+                core::cmp::Ordering::Less => {
+                    current = item; //this is the new minimum
+                    count = 1;
+                }
+            }
+        }
+
+        Some(current)
+    }
+
+    /// Returns a random minimum element.
+    ///
+    /// If the iterator is empty, [`None`] is returned.
+    /// Panics if the iterator has more than usize::Max minimum elements.
+    fn random_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+        mut self,
+        rng: &mut R,
+        mut compare: F,
+    ) -> Option<Self::Item>
+    where
+        Self::Item: Ord,
+    {
+        let Some(first)  = self.next() else {
+        return None;
+    };
+
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            match compare(&item, &current) {
+                core::cmp::Ordering::Greater => {}
+                core::cmp::Ordering::Equal => {
+                    //Choose either iter or current randomly, see random_element for more
+                    count += 1;
+                    if rng.gen_range(0..count) == 0 {
+                        current = item;
+                    }
+                }
+                core::cmp::Ordering::Less => {
+                    current = item; //this is the new minimum
+                    count = 1;
+                }
+            }
+        }
+
+        Some(current)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use core::ops::Range;
+
     use crate::Kindness;
     use rand::{Rng, RngCore, SeedableRng};
 
     #[test]
     fn test_random_element_with_size_hint() {
         let mut counts: [usize; 100] = [0; 100];
-        let mut inner_rng = rand::rngs::StdRng::seed_from_u64(123);
-        let mut rng = CountingRng {
-            rng: inner_rng,
-            count: 0,
-        };
+        let mut rng = get_rng();
 
         for _ in 0..10000 {
             let range = 0..100;
@@ -132,30 +235,28 @@ mod tests {
         }
 
         insta::assert_debug_snapshot!(counts);
-        for x in counts{
+        for x in counts {
             assert!(x > 60);
             assert!(x < 140);
         }
 
-        assert!(rng.count < 20000); // There should be at most two calls per iteration because we are using gen_range only once
-    }
+        assert_contains(10000..20000, &rng.count); // There should be at most two calls per iteration because we are using gen_range only once
 
-    #[inline(never)]
-    fn return_true() -> bool {
-        true
+        assert!(rng.count < 20000);
     }
 
     #[test]
     fn test_random_element_without_size_hint() {
         let mut counts: [usize; 100] = [0; 100];
-        let mut inner_rng = rand::rngs::StdRng::seed_from_u64(123);
-        let mut rng = CountingRng {
-            rng: inner_rng,
-            count: 0,
-        };
+        let mut rng = get_rng();
+
+        #[inline(never)]
+        fn return_true() -> bool {
+            true
+        }
 
         for _ in 0..10000 {
-            let range = (0..100).filter(|x| return_true());
+            let range = (0..100).filter(|_| return_true());
             assert_eq!((0, Some(100)), range.size_hint());
             let element = range.random_element(&mut rng).unwrap();
             counts[element] += 1;
@@ -163,21 +264,150 @@ mod tests {
 
         insta::assert_debug_snapshot!(counts);
 
-        for x in counts{
+        for x in counts {
             assert!(x > 60);
             assert!(x < 140);
         }
 
-        assert!(rng.count > 1000000);
-        assert!(rng.count < 2000000);        
+        assert_contains(1000000..2000000, &rng.count);
     }
 
-    struct CountingRng<Inner: RngCore> {
+    #[test]
+    fn test_random_max() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = (0..100).map(|x| RoughNumber(x));
+            let max = range.random_max(&mut rng).unwrap();
+            counts[max.0] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i,&x) in counts.iter().enumerate() {
+            if i < 90 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(900000..1800000, &rng.count);
+    }
+
+    #[test]
+    fn test_random_max_by() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = 0..100;
+            let max = range.random_max_by(&mut rng, |&a,&b| (a / 10).cmp(&(b / 10))).unwrap();
+            counts[max] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i,&x) in counts.iter().enumerate() {
+            if i < 90 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(900000..1800000, &rng.count);
+    }
+
+    #[test]
+    fn test_random_min() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = (0..100).map(|x| RoughNumber(x));
+            let min = range.random_min(&mut rng).unwrap();
+            counts[min.0] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i,&x) in counts.iter().enumerate() {
+            if i >= 10 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(100000..200000, &rng.count);
+    }
+
+    #[test]
+    fn test_random_min_by() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = 0..100;
+            let max = range.random_min_by(&mut rng, |&a,&b| (a / 10).cmp(&(b / 10))).unwrap();
+            counts[max] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i,&x) in counts.iter().enumerate() {
+            if i >= 10 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(100000..200000, &rng.count);
+    }
+
+    /// A number whose ordering is only affected by the tens digit e.g 42 >= 43
+    #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+    struct RoughNumber(pub usize);
+
+    impl Ord for RoughNumber {
+        fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+            (self.0 / 10).cmp(&(other.0 / 10))
+        }
+    }
+
+    impl PartialOrd for RoughNumber {
+        fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+            (self.0 / 10).partial_cmp(&(other.0 / 10))
+        }
+    }
+
+    fn assert_contains(range: Range<usize>, n: &usize) {
+        if !range.contains(n) {
+            panic!("The range {:?} does not contain {n}", range)
+        }
+    }
+
+    fn get_rng() -> CountingRng<rand::rngs::StdRng> {
+        let inner = rand::rngs::StdRng::seed_from_u64(123);
+        CountingRng {
+            rng: inner,
+            count: 0,
+        }
+    }
+
+    struct CountingRng<Inner: Rng> {
         pub rng: Inner,
         pub count: usize,
     }
 
-    impl<Inner: RngCore> RngCore for CountingRng<Inner> {
+    impl<Inner: Rng> RngCore for CountingRng<Inner> {
         fn next_u32(&mut self) -> u32 {
             self.count += 1;
             self.rng.next_u32()
