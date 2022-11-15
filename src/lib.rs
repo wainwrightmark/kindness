@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
-#![deny(missing_docs)]
-#![deny(warnings, dead_code, unused_imports, unused_mut)]
+// #![deny(missing_docs)]
+// #![deny(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
@@ -260,32 +260,35 @@ mod tests {
     use crate::Kindness;
     use rand::{Rng, RngCore, SeedableRng};
 
+    const RUNS : usize = 10000;
+    const LENGTH: usize = 100;
+    const LOWER_TOLERANCE: usize = 60;
+    const UPPER_TOLERANCE: usize = 140;
+
     #[test]
     fn test_random_element_with_size_hint() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = 0..100;
-            assert_eq!((100, Some(100)), range.size_hint());
+        for _ in 0..RUNS {
+            let range = 0..LENGTH;
+            assert_eq!((LENGTH, Some(LENGTH)), range.size_hint());
             let element = range.random_element(&mut rng).unwrap();
             counts[element] += 1;
         }
 
         insta::assert_debug_snapshot!(counts);
         for x in counts {
-            assert!(x > 60);
-            assert!(x < 140);
+            assert!(x > LOWER_TOLERANCE);
+            assert!(x < UPPER_TOLERANCE);
         }
 
-        assert_contains(10000..20000, &rng.count); // There should be at most two calls per iteration because we are using gen_range only once
-
-        assert!(rng.count < 20000);
+        assert_contains(RUNS..(RUNS * 2), &rng.count); // There should be at most two calls per iteration because we are using gen_range only once
     }
 
     #[test]
     fn test_random_element_without_size_hint() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
         #[inline(never)]
@@ -293,9 +296,9 @@ mod tests {
             true
         }
 
-        for _ in 0..10000 {
-            let range = (0..100).filter(|_| return_true());
-            assert_eq!((0, Some(100)), range.size_hint());
+        for _ in 0..RUNS {
+            let range = (0..LENGTH).filter(|_| return_true());
+            assert_eq!((0, Some(LENGTH)), range.size_hint());
             let element = range.random_element(&mut rng).unwrap();
             counts[element] += 1;
         }
@@ -303,20 +306,20 @@ mod tests {
         insta::assert_debug_snapshot!(counts);
 
         for x in counts {
-            assert!(x > 60);
-            assert!(x < 140);
+            assert!(x > LOWER_TOLERANCE);
+            assert!(x < UPPER_TOLERANCE);
         }
 
-        assert_contains(1000000..2000000, &rng.count);
+        assert_contains(RUNS..2000000, &rng.count);
     }
 
     #[test]
     fn test_random_max() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = (0..100).map(RoughNumber);
+        for _ in 0..RUNS {
+            let range = (0..LENGTH).map(RoughNumber);
             let max = range.random_max(&mut rng).unwrap();
             counts[max.0] += 1;
         }
@@ -327,21 +330,21 @@ mod tests {
             if i < 90 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE  * 10);
             }
         }
 
-        assert_contains(900000..1800000, &rng.count);
+        assert_contains(0..1800000, &rng.count);
     }
 
     #[test]
     fn test_random_max_by() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = 0..100;
+        for _ in 0..RUNS {
+            let range = 0..LENGTH;
             let max = range
                 .random_max_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
                 .unwrap();
@@ -354,21 +357,21 @@ mod tests {
             if i < 90 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE  * 10);
+                assert!(x < UPPER_TOLERANCE  * 10);
             }
         }
 
-        assert_contains(900000..1800000, &rng.count);
+        assert_contains(0..1800000, &rng.count);
     }
 
     #[test]
     fn test_random_max_by_key() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = 0..100;
+        for _ in 0..RUNS {
+            let range = 0..LENGTH;
             let max = range
                 .random_max_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
@@ -381,21 +384,21 @@ mod tests {
             if i < 90 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
-        assert_contains(900000..1800000, &rng.count);
+        assert_contains(0..1800000, &rng.count);
     }
 
     #[test]
     fn test_random_min() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = (0..100).map(RoughNumber);
+        for _ in 0..RUNS {
+            let range = (0..LENGTH).map(RoughNumber);
             let min = range.random_min(&mut rng).unwrap();
             counts[min.0] += 1;
         }
@@ -406,21 +409,21 @@ mod tests {
             if i >= 10 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
-        assert_contains(100000..200000, &rng.count);
+        assert_contains(0..200000, &rng.count);
     }
 
     #[test]
     fn test_random_min_by() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = 0..100;
+        for _ in 0..RUNS {
+            let range = 0..LENGTH;
             let max = range
                 .random_min_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
                 .unwrap();
@@ -433,21 +436,21 @@ mod tests {
             if i >= 10 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
-        assert_contains(100000..200000, &rng.count);
+        assert_contains(0..200000, &rng.count);
     }
 
     #[test]
     fn test_random_min_by_key() {
-        let mut counts: [usize; 100] = [0; 100];
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        for _ in 0..10000 {
-            let range = 0..100;
+        for _ in 0..RUNS {
+            let range = 0..LENGTH;
             let max = range
                 .random_min_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
@@ -460,12 +463,12 @@ mod tests {
             if i >= 10 {
                 assert!(x == 0)
             } else {
-                assert!(x > 600);
-                assert!(x < 1400);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
-        assert_contains(100000..200000, &rng.count);
+        assert_contains(0..200000, &rng.count);
     }
 
     /// A number whose ordering is only affected by the tens digit e.g 42 >= 43
