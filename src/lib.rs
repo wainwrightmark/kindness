@@ -1,6 +1,7 @@
+#![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
-#![warn(rust_2018_idioms, missing_docs)]
-#![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![allow(missing_docs)]
+#![allow(warnings, dead_code, unused_imports, unused_mut)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
 //!
@@ -10,7 +11,7 @@
 //!
 //! <br>
 //!
-//! Methods for returning random elements from an iterator.
+//! Methods for returning random elements from an iterator. Includes random_max(), random_max_by(), random_max_by_key(), random_element(), random_min(), random_min_by(), random_min_by_key()
 //!
 //! <br>
 //!
@@ -39,13 +40,162 @@
 //!
 //! [crates.io]: https://crates.io/crates/kindness
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
-//!
+
+use rand::Rng;
+
+/// Return a random element of the iterable.  
+/// Returns none if the iterable is empty.  
+/// Panics if the iterator has more than usize::Max elements.
+/// Will iterate the entire enumerable unless it has a size hint which indicates an exact length
+///
+/// ```no_run
+/// use kindness::random_element;
+///
+/// assert_eq!(random_element(0..10), Some(7)); //example value
+/// ```
+pub fn random_element<I, R: rand::RngCore>(iterable: I, rng: &mut R) -> Option<I::Item>
+where
+    I: IntoIterator,
+{
+    let mut iterator = iterable.into_iter();
+    if let (lower, Some(upper)) = iterator.size_hint() {
+        if lower == upper {
+            //the iterator has an exact size
+            if lower == 0 {
+                return None;
+            } else {
+                let n = rng.gen_range(0..upper);
+                return iterator.nth(n);
+            }
+        }
+    }
+
+    let Some(first)  = iterator.next() else {
+        return None;
+    };
+
+    let mut current = first;
+    let mut count: usize = 1;
+
+    for i in iterator {
+        count += 1;
+        if rng.gen_range(0..count) == 0 {
+            current = i;
+        }
+    }
+
+    Some(current)
+}
+
+impl<T: Iterator + Sized> Kindness for T {}
+
+/// An [`Iterator`] blanket implementation that provides extra adaptors and
+/// methods for returning random elements.
+pub trait Kindness: Iterator
+where
+    Self: Sized,
+{
+    /// Return a random element of the iterator.  
+    /// Returns none if the iterator is empty.  
+    /// Panics if the iterator has more than usize::Max elements.
+    /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length
+    ///
+    /// ```no_run
+    /// use kindness::random_element;
+    ///
+    /// assert_eq!(random_element(0..10), Some(7)); //example value
+    /// ```
+    fn random_element<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item> {
+        random_element(self, rng)
+    }
+}
 
 #[cfg(test)]
 mod tests {
+    use crate::Kindness;
+    use rand::{Rng, RngCore, SeedableRng};
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn test_random_element_with_size_hint() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut inner_rng = rand::rngs::StdRng::seed_from_u64(123);
+        let mut rng = CountingRng {
+            rng: inner_rng,
+            count: 0,
+        };
+
+        for _ in 0..10000 {
+            let range = 0..100;
+            assert_eq!((100, Some(100)), range.size_hint());
+            let element = range.random_element(&mut rng).unwrap();
+            counts[element] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+        for x in counts{
+            assert!(x > 60);
+            assert!(x < 140);
+        }
+
+        assert!(rng.count < 20000); // There should be at most two calls per iteration because we are using gen_range only once
+    }
+
+    #[inline(never)]
+    fn return_true() -> bool {
+        true
+    }
+
+    #[test]
+    fn test_random_element_without_size_hint() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut inner_rng = rand::rngs::StdRng::seed_from_u64(123);
+        let mut rng = CountingRng {
+            rng: inner_rng,
+            count: 0,
+        };
+
+        for _ in 0..10000 {
+            let range = (0..100).filter(|x| return_true());
+            assert_eq!((0, Some(100)), range.size_hint());
+            let element = range.random_element(&mut rng).unwrap();
+            counts[element] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for x in counts{
+            assert!(x > 60);
+            assert!(x < 140);
+        }
+
+        assert!(rng.count > 1000000);
+        assert!(rng.count < 2000000);        
+    }
+
+    struct CountingRng<Inner: RngCore> {
+        pub rng: Inner,
+        pub count: usize,
+    }
+
+    impl<Inner: RngCore> RngCore for CountingRng<Inner> {
+        fn next_u32(&mut self) -> u32 {
+            self.count += 1;
+            self.rng.next_u32()
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            self.count += 1;
+            self.rng.next_u64()
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            self.count += 1;
+            self.rng.fill_bytes(dest)
+        }
+
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+            self.count += 1;
+            self.rng.try_fill_bytes(dest)
+        }
     }
 }
