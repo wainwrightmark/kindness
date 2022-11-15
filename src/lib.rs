@@ -20,7 +20,7 @@
 //! ```no_run
 //! use kindness::*;
 //!
-//! 
+//!
 //! fn main()  {
 //!     use rand::SeedableRng;
 //!     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
@@ -102,6 +102,46 @@ where
         self.random_max_by(rng, Ord::cmp)
     }
 
+    /// Returns a random element that gives the maximum value from the
+    /// specified function.
+    /// If the iterator is empty, [`None`] is returned.
+    /// Panics if the iterator has more than usize::Max maximum elements.
+    fn random_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+        mut self,
+        rng: &mut R,
+        mut f: F,
+    ) -> Option<Self::Item> {
+        let Some(first)  = self.next() else {
+            return None;
+        };
+
+        let mut current_key = f(&first);
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            let item_key = f(&item);
+            match item_key.cmp(&current_key) {
+                core::cmp::Ordering::Less => {}
+                core::cmp::Ordering::Equal => {
+                    //Choose either iter or current randomly, see random_element for more
+                    count += 1;
+                    if rng.gen_range(0..count) == 0 {
+                        current_key = item_key;
+                        current = item;
+                    }
+                }
+                core::cmp::Ordering::Greater => {
+                    current_key = item_key; //this is the new maximum
+                    current = item;
+                    count = 1;
+                }
+            }
+        }
+
+        Some(current)
+    }
+
     /// Returns a random maximum element.
     ///
     /// If the iterator is empty, [`None`] is returned.
@@ -167,6 +207,46 @@ where
                 }
                 core::cmp::Ordering::Less => {
                     current = item; //this is the new minimum
+                    count = 1;
+                }
+            }
+        }
+
+        Some(current)
+    }
+
+    /// Returns a random element that gives the minimum value from the
+    /// specified function.
+    /// If the iterator is empty, [`None`] is returned.
+    /// Panics if the iterator has more than usize::Max minimum elements.
+    fn random_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+        mut self,
+        rng: &mut R,
+        mut f: F,
+    ) -> Option<Self::Item> {
+        let Some(first)  = self.next() else {
+            return None;
+        };
+
+        let mut current_key = f(&first);
+        let mut current = first;
+        let mut count: usize = 1;
+
+        for item in self {
+            let item_key = f(&item);
+            match item_key.cmp(&current_key) {
+                core::cmp::Ordering::Greater => {}
+                core::cmp::Ordering::Equal => {
+                    //Choose either iter or current randomly, see random_element for more
+                    count += 1;
+                    if rng.gen_range(0..count) == 0 {
+                        current_key = item_key;
+                        current = item;
+                    }
+                }
+                core::cmp::Ordering::Less => {
+                    current_key = item_key; //this is the new minimum
+                    current = item;
                     count = 1;
                 }
             }
@@ -285,7 +365,7 @@ mod tests {
 
         insta::assert_debug_snapshot!(counts);
 
-        for (i,&x) in counts.iter().enumerate() {
+        for (i, &x) in counts.iter().enumerate() {
             if i < 90 {
                 assert!(x == 0)
             } else {
@@ -304,13 +384,42 @@ mod tests {
 
         for _ in 0..10000 {
             let range = 0..100;
-            let max = range.random_max_by(&mut rng, |&a,&b| (a / 10).cmp(&(b / 10))).unwrap();
+            let max = range
+                .random_max_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
+                .unwrap();
             counts[max] += 1;
         }
 
         insta::assert_debug_snapshot!(counts);
 
-        for (i,&x) in counts.iter().enumerate() {
+        for (i, &x) in counts.iter().enumerate() {
+            if i < 90 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(900000..1800000, &rng.count);
+    }
+    
+    #[test]
+    fn test_random_max_by_key() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = 0..100;
+            let max = range
+                .random_max_by_key(&mut rng,|x| RoughNumber(*x))
+                .unwrap();
+            counts[max] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i, &x) in counts.iter().enumerate() {
             if i < 90 {
                 assert!(x == 0)
             } else {
@@ -335,7 +444,7 @@ mod tests {
 
         insta::assert_debug_snapshot!(counts);
 
-        for (i,&x) in counts.iter().enumerate() {
+        for (i, &x) in counts.iter().enumerate() {
             if i >= 10 {
                 assert!(x == 0)
             } else {
@@ -354,13 +463,42 @@ mod tests {
 
         for _ in 0..10000 {
             let range = 0..100;
-            let max = range.random_min_by(&mut rng, |&a,&b| (a / 10).cmp(&(b / 10))).unwrap();
+            let max = range
+                .random_min_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
+                .unwrap();
             counts[max] += 1;
         }
 
         insta::assert_debug_snapshot!(counts);
 
-        for (i,&x) in counts.iter().enumerate() {
+        for (i, &x) in counts.iter().enumerate() {
+            if i >= 10 {
+                assert!(x == 0)
+            } else {
+                assert!(x > 600);
+                assert!(x < 1400);
+            }
+        }
+
+        assert_contains(100000..200000, &rng.count);
+    }
+
+    #[test]
+    fn test_random_min_by_key() {
+        let mut counts: [usize; 100] = [0; 100];
+        let mut rng = get_rng();
+
+        for _ in 0..10000 {
+            let range = 0..100;
+            let max = range
+                .random_min_by_key(&mut rng,|x| RoughNumber(*x))
+                .unwrap();
+            counts[max] += 1;
+        }
+
+        insta::assert_debug_snapshot!(counts);
+
+        for (i, &x) in counts.iter().enumerate() {
             if i >= 10 {
                 assert!(x == 0)
             } else {
