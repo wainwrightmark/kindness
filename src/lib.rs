@@ -2,7 +2,7 @@
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
 #![deny(missing_docs)]
 #![deny(warnings, dead_code, unused_imports, unused_mut)]
-#![deny(clippy::integer_arithmetic)]
+#![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
 //!
@@ -43,7 +43,11 @@
 //! [crates.io]: https://crates.io/crates/kindness
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
+mod choice_iterator;
+
 use core::cmp::Ordering;
+
+use choice_iterator::ChoiceIterator;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -55,7 +59,7 @@ where
 {
     /// Return a random element of the iterator.  
     /// Returns none if the iterator is empty.  
-    /// If the iterator has more than usize::Max elements, later elements will be slightly more likely.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     fn random_element<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
         if let (lower, Some(upper)) = self.size_hint() {
@@ -63,39 +67,24 @@ where
                 //the iterator has an exact size, so we don't need to iterate the whole thing.
                 if lower == 0 {
                     return None;
-                } else {
-                    let n = rng.gen_range(0..upper);
-                    return self.nth(n);
                 }
+                let n = rng.gen_range(0..upper);
+                return self.nth(n);
             }
         }
 
-        let Some(first)  = self.next() else {
-            return None; //The iterator is empty
-        };
+        let choice_iterator = ChoiceIterator::new(rng, 0);
 
-        let mut current = first;
-        let mut count: usize = 1;
-
-        for item in self {
-            count = count.saturating_add(1);
-            if rng.gen_range(0..count) == 0 {
-                //We only change to a new item if the index is 0.
-                // This has a (1 / count) probability of happening.
-                // This ensures that every element has an equal probability of being returned.
-                // The first element has (1/2) * (2/3) .. (n-2/n-1)  (n-1/n) = (1/n) probability of being returned
-                // The kth element has (1/k+1) * (k+1/k+2) .. (n-2/n-1)  (n-1/n) = (1/n) probability of being returned
-                current = item;
-            }
-        }
-
-        Some(current)
+        choice_iterator
+            .zip(self)
+            .filter_map(|(chosen, item)| chosen.then_some(item))
+            .last()
     }
 
     /// Returns a random maximum element with respect to the specified comparison function.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than usize::Max maximum elements.
+    /// Panics if the iterator has more than `usize::Max` maximum elements.
     fn random_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
@@ -106,7 +95,7 @@ where
     /// Returns a random element that gives the maximum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than usize::Max maximum elements.
+    /// Panics if the iterator has more than `usize::Max` maximum elements.
     fn random_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
@@ -118,7 +107,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut count: usize = 1;
+        let mut choice_iterator = ChoiceIterator::new(rng, 1);
 
         for item in self {
             let item_key = f(&item);
@@ -126,16 +115,14 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count = count.saturating_add(1);
-                    if rng.gen_range(0..count) == 0 {
-                        current_key = item_key;
+                    if choice_iterator.next() == Some(true) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    count = 1;
+                    choice_iterator.reset_to_one();
                 }
             }
         }
@@ -146,7 +133,7 @@ where
     /// Returns a random maximum element.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than usize::Max maximum elements.
+    /// Panics if the iterator has more than `usize::Max` maximum elements.
     fn random_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
@@ -160,21 +147,19 @@ where
     };
 
         let mut current = first;
-        let mut count: usize = 1;
+        let mut choice_iterator = ChoiceIterator::new(rng, 1);
 
         for item in self {
             match compare(&item, &current) {
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
-                    //Choose either iter or current randomly, see random_element for more
-                    count = count.saturating_add(1);
-                    if rng.gen_range(0..count) == 0 {
+                    if choice_iterator.next() == Some(true) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current = item; //this is the new maximum
-                    count = 1;
+                    choice_iterator.reset_to_one();
                 }
             }
         }
@@ -184,42 +169,18 @@ where
 
     /// Return a random minimum element of the iterator.  
     /// Returns none if the iterator is empty.  
-    /// Panics if the iterator has more than usize::Max elements.
-    fn random_min<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item>
+    /// Panics if the iterator has more than `usize::Max` elements.
+    fn random_min<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
     {
-        let Some(first)  = self.next() else {
-        return None;
-    };
-
-        let mut current = first;
-        let mut count: usize = 1;
-
-        for item in self {
-            match item.cmp(&current) {
-                core::cmp::Ordering::Greater => {}
-                core::cmp::Ordering::Equal => {
-                    //Choose either iter or current randomly, see random_element for more
-                    count = count.saturating_add(1);
-                    if rng.gen_range(0..count) == 0 {
-                        current = item;
-                    }
-                }
-                core::cmp::Ordering::Less => {
-                    current = item; //this is the new minimum
-                    count = 1;
-                }
-            }
-        }
-
-        Some(current)
+        self.random_min_by(rng, Ord::cmp)
     }
 
     /// Returns a random element that gives the minimum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than usize::Max minimum elements.
+    /// Panics if the iterator has more than `usize::Max` minimum elements.
     fn random_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
@@ -231,7 +192,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut count: usize = 1;
+        let mut choice_iterator = ChoiceIterator::new(rng, 1);
 
         for item in self {
             let item_key = f(&item);
@@ -239,16 +200,14 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count = count.saturating_add(1);
-                    if rng.gen_range(0..count) == 0 {
-                        current_key = item_key;
+                    if choice_iterator.next() == Some(true) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
-                    current_key = item_key; //this is the new minimum
+                    current_key = item_key; //this is the new maximum
                     current = item;
-                    count = 1;
+                    choice_iterator.reset_to_one();
                 }
             }
         }
@@ -259,7 +218,7 @@ where
     /// Returns a random minimum element.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than usize::Max minimum elements.
+    /// Panics if the iterator has more than `usize::Max` minimum elements.
     fn random_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
@@ -273,21 +232,19 @@ where
     };
 
         let mut current = first;
-        let mut count: usize = 1;
+        let mut choice_iterator = ChoiceIterator::new(rng, 1);
 
         for item in self {
             match compare(&item, &current) {
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
-                    //Choose either iter or current randomly, see random_element for more
-                    count = count.saturating_add(1);
-                    if rng.gen_range(0..count) == 0 {
+                    if choice_iterator.next() == Some(true) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
-                    current = item; //this is the new minimum
-                    count = 1;
+                    current = item; //this is the new maximum
+                    choice_iterator.reset_to_one();
                 }
             }
         }
