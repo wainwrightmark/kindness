@@ -1,7 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
-// #![deny(missing_docs)]
-// #![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![deny(missing_docs)]
+#![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![deny(clippy::integer_arithmetic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
 //!
@@ -54,7 +55,7 @@ where
 {
     /// Return a random element of the iterator.  
     /// Returns none if the iterator is empty.  
-    /// Panics if the iterator has more than usize::Max elements.
+    /// If the iterator has more than usize::Max elements, later elements will be slightly more likely.
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     fn random_element<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
         if let (lower, Some(upper)) = self.size_hint() {
@@ -77,7 +78,7 @@ where
         let mut count: usize = 1;
 
         for item in self {
-            count += 1;
+            count = count.saturating_add(1);
             if rng.gen_range(0..count) == 0 {
                 //We only change to a new item if the index is 0.
                 // This has a (1 / count) probability of happening.
@@ -125,7 +126,7 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count += 1;
+                    count = count.saturating_add(1);
                     if rng.gen_range(0..count) == 0 {
                         current_key = item_key;
                         current = item;
@@ -166,7 +167,7 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count += 1;
+                    count = count.saturating_add(1);
                     if rng.gen_range(0..count) == 0 {
                         current = item;
                     }
@@ -200,7 +201,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count += 1;
+                    count = count.saturating_add(1);
                     if rng.gen_range(0..count) == 0 {
                         current = item;
                     }
@@ -238,7 +239,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count += 1;
+                    count = count.saturating_add(1);
                     if rng.gen_range(0..count) == 0 {
                         current_key = item_key;
                         current = item;
@@ -279,7 +280,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    count += 1;
+                    count = count.saturating_add(1);
                     if rng.gen_range(0..count) == 0 {
                         current = item;
                     }
@@ -358,7 +359,7 @@ mod tests {
         let mut rng = get_rng();
 
         for _ in 0..10000 {
-            let range = (0..100).map(|x| RoughNumber(x));
+            let range = (0..100).map(RoughNumber);
             let max = range.random_max(&mut rng).unwrap();
             counts[max.0] += 1;
         }
@@ -403,7 +404,7 @@ mod tests {
 
         assert_contains(900000..1800000, &rng.count);
     }
-    
+
     #[test]
     fn test_random_max_by_key() {
         let mut counts: [usize; 100] = [0; 100];
@@ -412,7 +413,7 @@ mod tests {
         for _ in 0..10000 {
             let range = 0..100;
             let max = range
-                .random_max_by_key(&mut rng,|x| RoughNumber(*x))
+                .random_max_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
             counts[max] += 1;
         }
@@ -437,7 +438,7 @@ mod tests {
         let mut rng = get_rng();
 
         for _ in 0..10000 {
-            let range = (0..100).map(|x| RoughNumber(x));
+            let range = (0..100).map(RoughNumber);
             let min = range.random_min(&mut rng).unwrap();
             counts[min.0] += 1;
         }
@@ -491,7 +492,7 @@ mod tests {
         for _ in 0..10000 {
             let range = 0..100;
             let max = range
-                .random_min_by_key(&mut rng,|x| RoughNumber(*x))
+                .random_min_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
             counts[max] += 1;
         }
