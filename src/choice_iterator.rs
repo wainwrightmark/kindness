@@ -27,8 +27,8 @@ fn calculate_upper(min: u64) -> (u64, u8) {
 /// ∀ n ∊ `1..U64::MAX` ∀ k ∊ `0..n`  
 /// After n items have been returned, the probability that the highest index where true was returned is k is 1 / n
 pub(crate) struct ChoiceIterator<R: RngCore> {
-    rng: R,
-    returned: u64,
+    pub rng: R,
+    consumed: usize,
     chunk: u64,
     chunk_remaining: u8
 }
@@ -39,7 +39,7 @@ impl<R: RngCore> ChoiceIterator<R> {
     pub fn new_zero(rng: R) -> Self {
         Self {
             rng,
-            returned : 0,
+            consumed : 0,
             //Set the chunk to one here because the first element is always true
             chunk: 1,
             chunk_remaining: 1
@@ -49,21 +49,16 @@ impl<R: RngCore> ChoiceIterator<R> {
     pub fn new_one(rng: R) -> Self {
         Self {
             rng,
-            returned : 1,
+            consumed : 1,
             //The chunk will be reset the first time we try to get an element
             chunk: 0,
             chunk_remaining: 0
         }
     }
 
-    // /// Reset the choice iterator. The next item returned will be true
-    // pub fn reset(&mut self){
-    //     self.returned = 0;
-    // }
-
-    /// Reset the choice iterator to the one state. The next item returned has a fifty percent change of being true.
-    pub fn reset_to_one(&mut self) {
-        self.returned = 1;
+    pub fn get_consumed(&self)-> usize{self.consumed}
+    pub fn set_consumed(&mut self, consumed:usize){
+        self.consumed = consumed;
         self.chunk = 0;
         self.chunk_remaining = 0;
     }
@@ -74,17 +69,17 @@ impl<R: RngCore> Iterator for ChoiceIterator<R> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {    
-        self.returned = self.returned.saturating_add(1);
+        self.consumed = self.consumed.saturating_add(1);
 
         if self.chunk_remaining == 0 {
-            let (bound, remaining) = calculate_upper(self.returned);
+            let (bound, remaining) = calculate_upper(self.consumed as u64);
             self.chunk_remaining = remaining;
             self.chunk = self.rng.gen_range(0..bound);            
         }
 
         
-        let result = self.chunk % self.returned == 0;
-        self.chunk = self.chunk / self.returned;
+        let result = self.chunk % (self.consumed  as u64) == 0;
+        self.chunk = self.chunk / (self.consumed  as u64);
         self.chunk_remaining -= 1;
         Some(result)
     }

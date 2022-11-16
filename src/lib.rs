@@ -48,8 +48,21 @@ mod choice_iterator;
 use core::cmp::Ordering;
 
 use choice_iterator::ChoiceIterator;
+use rand::Rng;
 
 impl<T: Iterator + Sized> Kindness for T {}
+
+// Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
+// possible, primarily in order to produce the same output on 32-bit and 64-bit
+// platforms.
+#[inline]
+fn gen_index<R: Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
+    if ubound <= (core::u32::MAX as usize) {
+        rng.gen_range(0..ubound as u32) as usize
+    } else {
+        rng.gen_range(0..ubound)
+    }
+}
 
 /// An [`Iterator`] blanket implementation that provides extra adaptors and
 /// methods for returning random elements.
@@ -63,24 +76,54 @@ where
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     #[inline]
     fn random_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
-        if let (lower, Some(upper)) = self.size_hint() {
-            if lower == upper {
-                //the iterator has an exact size, so we don't need to iterate the whole thing.
-                if lower == 0 {
-                    return None;
-                }
-                let n = rng.gen_range(0..upper);
-                return self.nth(n);
-            }
+        let (mut lower, mut upper) = self.size_hint();        
+        let mut result = None;
+
+        // Handling for this condition outside the loop allows the optimizer to eliminate the loop
+        // when the Iterator is an ExactSizeIterator. This has a large performance impact on e.g.
+        // seq_iter_choose_from_1000.
+        if upper == Some(lower) {
+            return if lower == 0 {
+                None
+            } else {
+                self.nth(gen_index(rng, lower))
+            };
         }
 
-        let choice_iterator = ChoiceIterator::new_zero(rng);
+        let mut choice_iterator = ChoiceIterator::new_zero(rng);
+        // Continue until the iterator is exhausted
+        loop {
+            if lower > 1 {
+                let ix = gen_index(choice_iterator.rng, lower + choice_iterator.get_consumed());
+                let skip = if ix < lower {
+                    result = self.nth(ix);
+                    lower - (ix + 1)
+                } else {
+                    lower
+                };
+                if upper == Some(lower) {
+                    return result;
+                }
+                choice_iterator.set_consumed(choice_iterator.get_consumed() + lower );                
+                if skip > 0 {
+                    self.nth(skip - 1);
+                }
+            } else {
+                let elem = self.next();
+                if elem.is_none() {
+                    return result;
+                }
+                if choice_iterator.next()== Some(true){
+                    result = elem;
+                }
+            }
 
-        choice_iterator
-            .zip(self)
-            .filter_map(|(chosen, item)| chosen.then_some(item))
-            .last()
+            let hint = self.size_hint();
+            lower = hint.0;
+            upper = hint.1;
+        }
     }
+    
 
     /// Returns a random maximum element with respect to the specified comparison function.
     ///
@@ -123,7 +166,7 @@ where
                 core::cmp::Ordering::Greater => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.reset_to_one();
+                    choice_iterator.set_consumed(1);
                 }
             }
         }
@@ -160,7 +203,7 @@ where
                 }
                 core::cmp::Ordering::Greater => {
                     current = item; //this is the new maximum
-                    choice_iterator.reset_to_one();
+                    choice_iterator.set_consumed(1);
                 }
             }
         }
@@ -208,7 +251,7 @@ where
                 core::cmp::Ordering::Less => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.reset_to_one();
+                    choice_iterator.set_consumed(1);
                 }
             }
         }
@@ -245,7 +288,7 @@ where
                 }
                 core::cmp::Ordering::Less => {
                     current = item; //this is the new maximum
-                    choice_iterator.reset_to_one();
+                    choice_iterator.set_consumed(1);
                 }
             }
         }
