@@ -26,7 +26,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
 fn random_item(max: usize, rng: &mut rand::rngs::StdRng) -> usize {
     let range = UnhintedIterator(0..max);
-    range.random_item(rng).unwrap()
+    range.choose_item(rng).unwrap()
 }
 
 fn choose(max: usize, rng: &mut rand::rngs::StdRng) -> usize {
@@ -36,7 +36,7 @@ fn choose(max: usize, rng: &mut rand::rngs::StdRng) -> usize {
 
 fn random_item_windowed(max: usize, window: usize, rng: &mut rand::rngs::StdRng) -> usize {
     let range = WindowHintedIterator(0..max, window);
-    range.random_item(rng).unwrap()
+    range.choose_item(rng).unwrap()
 }
 fn choose_windowed(max: usize, window: usize, rng: &mut rand::rngs::StdRng) -> usize {
     let range = WindowHintedIterator(0..max, window);

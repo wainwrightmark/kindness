@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-#![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/kindness/0.2.0")]
 #![deny(missing_docs)]
 #![deny(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
@@ -12,7 +12,7 @@
 //!
 //! <br>
 //!
-//! Methods for returning random elements from an iterator. Includes random_max(), random_max_by(), random_max_by_key(), random_element(), random_min(), random_min_by(), random_min_by_key()
+//! Methods for choosing random elements from an iterator.
 //!
 //! <br>
 //!
@@ -25,7 +25,7 @@
 //! fn main()  {
 //!     use rand::SeedableRng;
 //!     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
-//!     let m =[3,2,1,2,3].iter().random_max(&mut rng).unwrap();
+//!     let m =[3,2,1,2,3].iter().choose_max(&mut rng).unwrap();
 //!     assert_eq!(*m, 3)
 //! }
 //! ```
@@ -57,7 +57,7 @@ where
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     #[inline]
-    fn random_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
+    fn choose_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
         let (mut lower, mut upper) = self.size_hint();
         let mut result = None;
 
@@ -112,18 +112,18 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
+    fn choose_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
     {
-        self.random_max_by(rng, Ord::cmp)
+        self.choose_max_by(rng, Ord::cmp)
     }
 
     /// Returns a random element that gives the maximum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+    fn choose_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
         mut f: F,
@@ -161,7 +161,7 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+    fn choose_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
         mut compare: F,
@@ -197,18 +197,18 @@ where
     /// Return a random minimum element of the iterator.  
     /// Returns none if the iterator is empty.  
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_min<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
+    fn choose_min<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
     {
-        self.random_min_by(rng, Ord::cmp)
+        self.choose_min_by(rng, Ord::cmp)
     }
 
     /// Returns a random element that gives the minimum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+    fn choose_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
         mut f: F,
@@ -246,7 +246,7 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn random_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+    fn choose_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
         mut compare: F,
@@ -300,7 +300,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             assert_eq!((LENGTH, Some(LENGTH)), range.size_hint());
-            let element = range.random_item(&mut rng).unwrap();
+            let element = range.choose_item(&mut rng).unwrap();
             counts[element] += 1;
         }
 
@@ -321,7 +321,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = UnhintedIterator(0..LENGTH);
             assert_eq!((0, None), range.size_hint());
-            let element = range.random_item(&mut rng).unwrap();
+            let element = range.choose_item(&mut rng).unwrap();
             counts[element] += 1;
         }
 
@@ -343,7 +343,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = UnhintedIterator(0..LENGTH);
             assert_eq!((0, None), range.size_hint());
-            let element = range.random_item(&mut rng).unwrap();
+            let element = range.choose_item(&mut rng).unwrap();
             counts[element] += 1;
         }
 
@@ -364,7 +364,7 @@ mod tests {
 
         for _ in 0..RUNS {
             let range = (0..LENGTH).map(RoughNumber);
-            let max = range.random_max(&mut rng).unwrap();
+            let max = range.choose_max(&mut rng).unwrap();
             counts[max.0] += 1;
         }
 
@@ -390,7 +390,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             let max = range
-                .random_max_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
+                .choose_max_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
                 .unwrap();
             counts[max] += 1;
         }
@@ -417,7 +417,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             let max = range
-                .random_max_by_key(&mut rng, |x| RoughNumber(*x))
+                .choose_max_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
             counts[max] += 1;
         }
@@ -443,7 +443,7 @@ mod tests {
 
         for _ in 0..RUNS {
             let range = (0..LENGTH).map(RoughNumber);
-            let min = range.random_min(&mut rng).unwrap();
+            let min = range.choose_min(&mut rng).unwrap();
             counts[min.0] += 1;
         }
 
@@ -469,7 +469,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             let max = range
-                .random_min_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
+                .choose_min_by(&mut rng, |&a, &b| (a / 10).cmp(&(b / 10)))
                 .unwrap();
             counts[max] += 1;
         }
@@ -496,7 +496,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             let max = range
-                .random_min_by_key(&mut rng, |x| RoughNumber(*x))
+                .choose_min_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
             counts[max] += 1;
         }
