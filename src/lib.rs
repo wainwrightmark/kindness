@@ -38,11 +38,11 @@
 //! [crates.io]: https://crates.io/crates/kindness
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
-mod choice_iterator;
+mod chooser;
 
 use core::cmp::Ordering;
 
-use choice_iterator::Chooser;
+use chooser::Chooser;
 
 impl<T: Iterator + Sized> Kindness for T {}
 

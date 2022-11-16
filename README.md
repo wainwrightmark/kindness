@@ -7,7 +7,7 @@
 
 Methods for returning random elements from an iterator. 
 
-Includes random_item(), random_max(), random_max_by(), random_max_by_key(), random_min(), random_min_by(), random_min_by_key()
+Includes `random_item()`, `random_max()`, `random_max_by()`, `random_max_by_key()`, `random_min()`, `random_min_by()`, `random_min_by_key()`
 
 Does not allocate or iterate iterators more than once.
 
