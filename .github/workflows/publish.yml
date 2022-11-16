@@ -8,6 +8,7 @@ on:
       - Cargo.toml
   repository_dispatch:
     types: publish
+  workflow_dispatch:
 
 # After you create the GitHub repo, head over to `crates.io` and create
 # an API Token, or use the link below:
