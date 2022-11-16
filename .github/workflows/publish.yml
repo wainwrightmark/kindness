@@ -23,8 +23,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
-
+        uses: actions/checkout@v2      
+      - name: Stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
       - name: Set variables
         id: vars
         run: |
@@ -51,7 +55,7 @@ jobs:
       # The result from above is JSON-encoded, meaning that we
       # end up with the string 'true', not the Boolean true.
       - if: steps.need-release.outputs.result == 'true'
-        name: Publish crate to crates.io
+        name: Publish crate to crates.io        
         run: |
           echo "Publishing ${{ steps.vars.outputs.name }}-${{ steps.vars.outputs.version }}"
           cargo publish --token ${{ secrets.CARGO_TOKEN }}
