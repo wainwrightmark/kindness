@@ -47,7 +47,7 @@ mod choice_iterator;
 
 use core::cmp::Ordering;
 
-use choice_iterator::ChoiceIterator as ChoiceIterator;
+use choice_iterator::ChoiceIterator;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -261,7 +261,7 @@ mod tests {
     use crate::Kindness;
     use rand::{Rng, RngCore, SeedableRng};
 
-    const RUNS : usize = 10000;
+    const RUNS: usize = 10000;
     const LENGTH: usize = 100;
     const LOWER_TOLERANCE: usize = 60;
     const UPPER_TOLERANCE: usize = 140;
@@ -288,18 +288,35 @@ mod tests {
     }
 
     #[test]
-    fn test_random_element_without_size_hint() {
+    fn test_random_element_unhinted() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
-        #[inline(never)]
-        fn return_true() -> bool {
-            true
+        for _ in 0..RUNS {
+            let range = UnhintedIterator(0..LENGTH);
+            assert_eq!((0, None), range.size_hint());
+            let element = range.random_item(&mut rng).unwrap();
+            counts[element] += 1;
         }
 
+        insta::assert_debug_snapshot!(counts);
+
+        for x in counts {
+            assert!(x > LOWER_TOLERANCE);
+            assert!(x < UPPER_TOLERANCE);
+        }
+
+        assert_contains(RUNS..2000000, &rng.count);
+    }
+    
+    #[test]
+    fn test_random_element_windowed() {
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
+        let mut rng = get_rng();
+
         for _ in 0..RUNS {
-            let range = (0..LENGTH).filter(|_| return_true());
-            assert_eq!((0, Some(LENGTH)), range.size_hint());
+            let range = UnhintedIterator(0..LENGTH);
+            assert_eq!((0, None), range.size_hint());
             let element = range.random_item(&mut rng).unwrap();
             counts[element] += 1;
         }
@@ -332,7 +349,7 @@ mod tests {
                 assert!(x == 0)
             } else {
                 assert!(x > LOWER_TOLERANCE * 10);
-                assert!(x < UPPER_TOLERANCE  * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
@@ -358,8 +375,8 @@ mod tests {
             if i < 90 {
                 assert!(x == 0)
             } else {
-                assert!(x > LOWER_TOLERANCE  * 10);
-                assert!(x < UPPER_TOLERANCE  * 10);
+                assert!(x > LOWER_TOLERANCE * 10);
+                assert!(x < UPPER_TOLERANCE * 10);
             }
         }
 
@@ -471,6 +488,31 @@ mod tests {
 
         assert_contains(0..200000, &rng.count);
     }
+
+    #[derive(Clone)]
+struct UnhintedIterator<I: Iterator + Clone>(I);
+impl<I: Iterator + Clone> Iterator for UnhintedIterator<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+#[derive(Clone)]
+struct WindowHintedIterator<I: ExactSizeIterator + Iterator + Clone>(I, usize);
+
+impl<I: ExactSizeIterator + Iterator + Clone> Iterator for WindowHintedIterator<I> {
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (core::cmp::min(self.0.len(), self.1), None)
+    }
+}
 
     /// A number whose ordering is only affected by the tens digit e.g 42 >= 43
     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
