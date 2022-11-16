@@ -76,7 +76,7 @@ where
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     #[inline]
     fn random_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
-        let (mut lower, mut upper) = self.size_hint();        
+        let (mut lower, mut upper) = self.size_hint();
         let mut result = None;
 
         // Handling for this condition outside the loop allows the optimizer to eliminate the loop
@@ -104,7 +104,7 @@ where
                 if upper == Some(lower) {
                     return result;
                 }
-                choice_iterator.set_consumed(choice_iterator.get_consumed() + lower );                
+                choice_iterator.set_consumed(choice_iterator.get_consumed() + lower);
                 if skip > 0 {
                     self.nth(skip - 1);
                 }
@@ -113,7 +113,7 @@ where
                 if elem.is_none() {
                     return result;
                 }
-                if choice_iterator.next()== Some(true){
+                if choice_iterator.next() {
                     result = elem;
                 }
             }
@@ -123,7 +123,6 @@ where
             upper = hint.1;
         }
     }
-    
 
     /// Returns a random maximum element with respect to the specified comparison function.
     ///
@@ -159,14 +158,14 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    if choice_iterator.next() == Some(true) {
+                    if choice_iterator.next() {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.set_consumed(1);
+                    choice_iterator.set_consumed_to_one();
                 }
             }
         }
@@ -197,13 +196,13 @@ where
             match compare(&item, &current) {
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
-                    if choice_iterator.next() == Some(true) {
+                    if choice_iterator.next() {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current = item; //this is the new maximum
-                    choice_iterator.set_consumed(1);
+                    choice_iterator.set_consumed_to_one();
                 }
             }
         }
@@ -244,14 +243,14 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    if choice_iterator.next() == Some(true) {
+                    if choice_iterator.next(){
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.set_consumed(1);
+                    choice_iterator.set_consumed_to_one();
                 }
             }
         }
@@ -282,13 +281,13 @@ where
             match compare(&item, &current) {
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
-                    if choice_iterator.next() == Some(true) {
+                    if choice_iterator.next(){
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
                     current = item; //this is the new maximum
-                    choice_iterator.set_consumed(1);
+                    choice_iterator.set_consumed_to_one();
                 }
             }
         }
@@ -351,7 +350,7 @@ mod tests {
 
         assert_contains(RUNS..2000000, &rng.count);
     }
-    
+
     #[test]
     fn test_random_element_windowed() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];
@@ -430,6 +429,7 @@ mod tests {
     fn test_random_max_by_key() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
+        
 
         for _ in 0..RUNS {
             let range = 0..LENGTH;
@@ -515,7 +515,7 @@ mod tests {
             let max = range
                 .random_min_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
-            counts[max] += 1;
+            counts[max] += 1;            
         }
 
         insta::assert_debug_snapshot!(counts);
@@ -533,29 +533,29 @@ mod tests {
     }
 
     #[derive(Clone)]
-struct UnhintedIterator<I: Iterator + Clone>(I);
-impl<I: Iterator + Clone> Iterator for UnhintedIterator<I> {
-    type Item = I::Item;
+    struct UnhintedIterator<I: Iterator + Clone>(I);
+    impl<I: Iterator + Clone> Iterator for UnhintedIterator<I> {
+        type Item = I::Item;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-#[derive(Clone)]
-struct WindowHintedIterator<I: ExactSizeIterator + Iterator + Clone>(I, usize);
-
-impl<I: ExactSizeIterator + Iterator + Clone> Iterator for WindowHintedIterator<I> {
-    type Item = I::Item;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
     }
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (core::cmp::min(self.0.len(), self.1), None)
+    #[derive(Clone)]
+    struct WindowHintedIterator<I: ExactSizeIterator + Iterator + Clone>(I, usize);
+
+    impl<I: ExactSizeIterator + Iterator + Clone> Iterator for WindowHintedIterator<I> {
+        type Item = I::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            self.0.next()
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (core::cmp::min(self.0.len(), self.1), None)
+        }
     }
-}
 
     /// A number whose ordering is only affected by the tens digit e.g 42 >= 43
     #[derive(Debug, Eq, PartialEq, Copy, Clone)]
@@ -611,6 +611,6 @@ impl<I: ExactSizeIterator + Iterator + Clone> Iterator for WindowHintedIterator<
         fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
             self.count += 1;
             self.rng.try_fill_bytes(dest)
-        }
+        }        
     }
 }
