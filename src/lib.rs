@@ -85,7 +85,7 @@ where
     /// Returns a random maximum element with respect to the specified comparison function.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than `usize::Max` maximum elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
@@ -96,7 +96,7 @@ where
     /// Returns a random element that gives the maximum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than `usize::Max` maximum elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
@@ -134,7 +134,7 @@ where
     /// Returns a random maximum element.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than `usize::Max` maximum elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
@@ -170,7 +170,7 @@ where
 
     /// Return a random minimum element of the iterator.  
     /// Returns none if the iterator is empty.  
-    /// Panics if the iterator has more than `usize::Max` elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_min<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
@@ -181,7 +181,7 @@ where
     /// Returns a random element that gives the minimum value from the
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than `usize::Max` minimum elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
@@ -219,7 +219,7 @@ where
     /// Returns a random minimum element.
     ///
     /// If the iterator is empty, [`None`] is returned.
-    /// Panics if the iterator has more than `usize::Max` minimum elements.
+    /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     fn random_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
