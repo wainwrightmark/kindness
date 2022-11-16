@@ -3,8 +3,7 @@ use kindness::Kindness;
 use rand::{seq::IteratorRandom, SeedableRng};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-
-    for value in [1,2,4,20,100,1000, 10000]{
+    for value in [1, 2, 4, 20, 100, 1000, 10000] {
         c.bench_function(format!("random_item({value})").as_str(), |b| {
             let mut rng = get_rng(123);
             b.iter(|| random_item(black_box(value), &mut rng))
@@ -13,14 +12,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut rng = get_rng(123);
             b.iter(|| choose(black_box(value), &mut rng))
         });
-        
+
         c.bench_function(format!("random_item_windowed({value})").as_str(), |b| {
             let mut rng = get_rng(123);
             b.iter(|| random_item_windowed(black_box(value), 100, &mut rng))
         });
         c.bench_function(format!("choose_windowed({value})").as_str(), |b| {
             let mut rng = get_rng(123);
-            b.iter(|| choose_windowed(black_box(value),100, &mut rng))
+            b.iter(|| choose_windowed(black_box(value), 100, &mut rng))
         });
     }
 }

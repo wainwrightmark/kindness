@@ -9,14 +9,6 @@ Possible header types:
 - `Bug Fixes` for any bug fixes.
 - `Breaking Changes` for any backwards-incompatible changes.
 
-## [Unreleased]
-<!--
-### Features
-- Added a new struct `MyStruct` with the following methods:
-  - `my_method()`
-  - `other_method()`
--->
-
 ## v0.1.0 (2022-11-15)
 
 - Initial Release on [crates.io] :tada:

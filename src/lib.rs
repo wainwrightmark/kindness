@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.1.0")]
-// #![deny(missing_docs)]
-// #![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![deny(missing_docs)]
+#![deny(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
@@ -18,7 +18,7 @@
 //!
 //! ## Usage
 //!
-//! ```no_run
+//! ```
 //! use kindness::*;
 //!
 //!
@@ -29,11 +29,6 @@
 //!     assert_eq!(*m, 3)
 //! }
 //! ```
-//!
-//! ## Examples
-//!
-//! You can check out sample usage of this crate in the [examples/](https://github.com/wainwrightmark/kindness/tree/main/examples)
-//! folder in the project repo on GitHub.
 //!
 //! ## Readme Docs
 //!
@@ -47,22 +42,9 @@ mod choice_iterator;
 
 use core::cmp::Ordering;
 
-use choice_iterator::ChoiceIterator;
-use rand::Rng;
+use choice_iterator::Chooser;
 
 impl<T: Iterator + Sized> Kindness for T {}
-
-// Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
-// possible, primarily in order to produce the same output on 32-bit and 64-bit
-// platforms.
-#[inline]
-fn gen_index<R: Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
-    if ubound <= (core::u32::MAX as usize) {
-        rng.gen_range(0..ubound as u32) as usize
-    } else {
-        rng.gen_range(0..ubound)
-    }
-}
 
 /// An [`Iterator`] blanket implementation that provides extra adaptors and
 /// methods for returning random elements.
@@ -86,15 +68,17 @@ where
             return if lower == 0 {
                 None
             } else {
-                self.nth(gen_index(rng, lower))
+                self.nth(rng.gen_range(0..lower))
             };
         }
 
-        let mut choice_iterator = ChoiceIterator::new_zero(rng);
+        let mut choice_iterator = Chooser::new_zero(rng);
         // Continue until the iterator is exhausted
         loop {
             if lower > 1 {
-                let ix = gen_index(choice_iterator.rng, lower + choice_iterator.get_consumed());
+                let ix = choice_iterator
+                    .rng
+                    .gen_range(0..(lower + choice_iterator.get_consumed()));
                 let skip = if ix < lower {
                     result = self.nth(ix);
                     lower - (ix + 1)
@@ -150,7 +134,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new_one(rng);
+        let mut choice_iterator = Chooser::new_one(rng);
 
         for item in self {
             let item_key = f(&item);
@@ -190,7 +174,7 @@ where
     };
 
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new_one(rng);
+        let mut choice_iterator = Chooser::new_one(rng);
 
         for item in self {
             match compare(&item, &current) {
@@ -235,7 +219,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new_one(rng);
+        let mut choice_iterator = Chooser::new_one(rng);
 
         for item in self {
             let item_key = f(&item);
@@ -243,7 +227,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     //Choose either iter or current randomly, see random_element for more
-                    if choice_iterator.next(){
+                    if choice_iterator.next() {
                         current = item;
                     }
                 }
@@ -275,13 +259,13 @@ where
     };
 
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new_one(rng);
+        let mut choice_iterator = Chooser::new_one(rng);
 
         for item in self {
             match compare(&item, &current) {
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
-                    if choice_iterator.next(){
+                    if choice_iterator.next() {
                         current = item;
                     }
                 }
@@ -429,7 +413,6 @@ mod tests {
     fn test_random_max_by_key() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
-        
 
         for _ in 0..RUNS {
             let range = 0..LENGTH;
@@ -515,7 +498,7 @@ mod tests {
             let max = range
                 .random_min_by_key(&mut rng, |x| RoughNumber(*x))
                 .unwrap();
-            counts[max] += 1;            
+            counts[max] += 1;
         }
 
         insta::assert_debug_snapshot!(counts);
@@ -611,6 +594,6 @@ mod tests {
         fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
             self.count += 1;
             self.rng.try_fill_bytes(dest)
-        }        
+        }
     }
 }
