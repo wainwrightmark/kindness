@@ -25,9 +25,9 @@ rand = "0.8.5"
 
 ```rust
 use kindness::*;
+use rand::SeedableRng;
 
-fn main() {
-    use rand::SeedableRng;
+fn main() {    
     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
     let m =[3,2,1,2,3].iter().random_max(&mut rng).unwrap();
     assert_eq!(*m, 3)
