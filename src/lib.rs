@@ -47,7 +47,7 @@ mod choice_iterator;
 
 use core::cmp::Ordering;
 
-use choice_iterator::ChoiceIterator;
+use choice_iterator::ChoiceIterator as ChoiceIterator;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -61,7 +61,8 @@ where
     /// Returns none if the iterator is empty.  
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
-    fn random_element<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
+    #[inline]
+    fn random_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
         if let (lower, Some(upper)) = self.size_hint() {
             if lower == upper {
                 //the iterator has an exact size, so we don't need to iterate the whole thing.
@@ -73,7 +74,7 @@ where
             }
         }
 
-        let choice_iterator = ChoiceIterator::new(rng, 0);
+        let choice_iterator = ChoiceIterator::new_zero(rng);
 
         choice_iterator
             .zip(self)
@@ -107,7 +108,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new(rng, 1);
+        let mut choice_iterator = ChoiceIterator::new_one(rng);
 
         for item in self {
             let item_key = f(&item);
@@ -147,7 +148,7 @@ where
     };
 
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new(rng, 1);
+        let mut choice_iterator = ChoiceIterator::new_one(rng);
 
         for item in self {
             match compare(&item, &current) {
@@ -192,7 +193,7 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new(rng, 1);
+        let mut choice_iterator = ChoiceIterator::new_one(rng);
 
         for item in self {
             let item_key = f(&item);
@@ -232,7 +233,7 @@ where
     };
 
         let mut current = first;
-        let mut choice_iterator = ChoiceIterator::new(rng, 1);
+        let mut choice_iterator = ChoiceIterator::new_one(rng);
 
         for item in self {
             match compare(&item, &current) {
@@ -273,7 +274,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = 0..LENGTH;
             assert_eq!((LENGTH, Some(LENGTH)), range.size_hint());
-            let element = range.random_element(&mut rng).unwrap();
+            let element = range.random_item(&mut rng).unwrap();
             counts[element] += 1;
         }
 
@@ -299,7 +300,7 @@ mod tests {
         for _ in 0..RUNS {
             let range = (0..LENGTH).filter(|_| return_true());
             assert_eq!((0, Some(LENGTH)), range.size_hint());
-            let element = range.random_element(&mut rng).unwrap();
+            let element = range.random_item(&mut rng).unwrap();
             counts[element] += 1;
         }
 
