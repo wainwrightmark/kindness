@@ -25,7 +25,7 @@ impl<R: RngCore> CoinFlipper<R> {
             return false;
         }
 
-        return self.gen_ratio(1 << n, denominator);
+        self.gen_ratio(1 << n, denominator)
     }
 
     /// Returns true with a probability of numerator / denominator
@@ -54,20 +54,19 @@ impl<R: RngCore> CoinFlipper<R> {
                 } else { //Tails
                     if next_numerator < denominator {
                         return false; //2n < d
-                    } else {
-                        numerator = next_numerator - denominator; //2n was greater than d so set it to 2n - d
                     }
+                    numerator = next_numerator - denominator; //2n was greater than d so set it to 2n - d
                 }
             } else {//Special branch just for massive numbers.
                 //2n > usize::max >= d so 2n >= d
                 if self.next() { //heads
                     return true; 
-                } else { //tails
-                    numerator = numerator.wrapping_sub(denominator).wrapping_add(numerator); //2n - d
                 }
+                //Tails
+                numerator = numerator.wrapping_sub(denominator).wrapping_add(numerator); //2n - d
             }
         }
-        return true;
+        true
     }
 
     /// Consume one bit of randomness
@@ -85,7 +84,7 @@ impl<R: RngCore> CoinFlipper<R> {
 
         let result = self.chunk.trailing_zeros() > 0; //TODO check if there is a faster test the last bit
         self.chunk = self.chunk.wrapping_shr(1);        
-        return result;
+        result
     }
 
     /// If the next n bits of randomness are all zeroes, consume them and return true.
@@ -98,7 +97,7 @@ impl<R: RngCore> CoinFlipper<R> {
                 n -= self.chunk_remaining; // Remaining bits are zeroes, we will need to generate more bits and continue
             } else {
                 self.chunk_remaining -= zeros + 1; //There was a one in the remaining bits so we can consume it and continue
-                self.chunk = self.chunk >> (zeros + 1);
+                self.chunk >>= zeros + 1;
                 return false;
             }
             self.chunk = self.rng.next_u32();
@@ -111,7 +110,7 @@ impl<R: RngCore> CoinFlipper<R> {
         self.chunk = self.chunk.wrapping_shr(bits_to_consume);
         self.chunk_remaining = self.chunk_remaining.saturating_sub(bits_to_consume);
 
-        return result;
+        result
     }
 }
 #[cfg(test)]
