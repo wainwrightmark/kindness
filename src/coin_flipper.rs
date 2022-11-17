@@ -38,11 +38,10 @@ impl<R: RngCore> CoinFlipper<R> {
                     }
                 }
             } else {
-                panic!("Reached branch");
                 if self.next() {
                     return true; //numerator must have been more than half the denominator
                 } else {
-                    numerator.wrapping_sub(denominator).wrapping_add(numerator);
+                    numerator = numerator.wrapping_sub(denominator).wrapping_add(numerator);
                 }
             }
         }
@@ -91,10 +90,66 @@ mod tests {
     use crate::CoinFlipper;
     use rand::{Rng, RngCore, SeedableRng};
 
+    /// How many runs to do
     const RUNS: usize = 10000;
+    /// Different length arrays to use
     const LENGTH: usize = 10000;
     const START: usize = 1;
-    const SEED: u64 = 1;
+    const SEED: u64 = 123;
+
+    #[test]
+    pub fn test_one_over_for_big_numbers() {
+        let rng = get_rng();
+
+        let mut coin_flipper = CoinFlipper::new(rng);
+
+        let mut count = 0;
+        for _ in 0..LENGTH {
+            if coin_flipper.gen_ratio_one_over((2_i64.pow(33) + 1) as usize) {
+                count += 1;
+            }
+        }
+
+        let average_gens = ((LENGTH) as f64) / (coin_flipper.rng.count as f64);
+
+        println!(
+            "Gens: {} (1 per {} gens)",
+            coin_flipper.rng.count, average_gens
+        );
+        println!("Count: {count}");
+        assert_contains(15.5..16.5, &average_gens); //Should be about 16
+
+        
+        assert!(count < 2); //Should not get it twice
+    }
+
+    #[test]
+    pub fn test_gen_ratio_for_big_numbers() {
+        let rng = get_rng();
+        let mut coin_flipper = CoinFlipper::new(rng);
+
+        let mut count = 0;
+        for _ in 0..RUNS {
+            if coin_flipper.gen_ratio((usize::MAX / 2) + 1, usize::MAX) {
+                count += 1;
+            }
+        }
+
+        let average_gens = (RUNS as f64) / (coin_flipper.rng.count as f64);
+
+        println!(
+            "Gens: {} (1 per {} gens)",
+            coin_flipper.rng.count, average_gens
+        );
+
+        println!("Count: {count}");
+
+        let mean = (count as f64) / RUNS as f64;
+
+        println!("Mean: {mean}");
+
+        assert_contains(0.45..0.55, &mean); //Should be about 0.5
+    }
 
     #[test]
     pub fn test_coin_flipper_gen_ratio() {
