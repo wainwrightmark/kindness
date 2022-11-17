@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.2.0")]
-#![allow(missing_docs)]
-#![allow(warnings, dead_code, unused_imports, unused_mut)]
+#![deny(missing_docs)]
+#![deny(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)

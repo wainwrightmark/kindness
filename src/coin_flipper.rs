@@ -1,4 +1,4 @@
-use rand::{Rng, RngCore};
+use rand::{ RngCore};
 
 pub(crate) struct CoinFlipper<R: RngCore> {
     pub rng: R,
@@ -15,7 +15,10 @@ impl<R: RngCore> CoinFlipper<R> {
         }
     }
 
+    /// Returns true with a probability of 1 / denominator.
+    /// Uses an expected two bits of randomness
     pub fn gen_ratio_one_over(&mut self, denominator: usize) -> bool {
+        //For this case we can use an optimization, checking a large number of bits at once. If all those bits are successful, then we specialize
         let n = usize::BITS - denominator.leading_zeros() - 1;
 
         if !self.all_next(n) {
@@ -25,23 +28,42 @@ impl<R: RngCore> CoinFlipper<R> {
         return self.gen_ratio(1 << n, denominator);
     }
 
+    /// Returns true with a probability of numerator / denominator
+    /// Uses an expected two bits of randomness
     pub fn gen_ratio(&mut self, mut numerator: usize, denominator: usize) -> bool {
-        while numerator < denominator {
-            if let Some(new_numerator) = numerator.checked_mul(2) {
-                if self.next() {
-                    numerator = new_numerator;
-                } else {
-                    if new_numerator < denominator {
-                        return false;
+        
+        // Explanation:
+        // We are trying to return true with a probability of n / d
+        // If n >= d, we can just return true
+        // Otherwise there are two possibilities 2n < d and 2n >= d
+        // In either case we flip a coin. 
+        // If 2n < d
+        //  If it comes up tails, return false
+        //  If it comes up heads, double n and start again
+        //  This is fair because (0.5 * 0) + (0.5 * 2n / d) = n / d and 2n is less than d (if 2n was greater than d we would effectively round it down to 1)
+        // If 2n >= d
+        //   If it comes up tails, set n to 2n - d
+        //   If it comes up heads, return true
+        //   This is fair because (0.5 * 1) + (0.5 * (2n - d) / d) = n / d
+
+        while numerator < denominator { 
+            if let Some(next_numerator) = numerator.checked_mul(2) { //This condition will usually be true
+                
+                if self.next() { //Heads
+                    numerator = next_numerator; 
+                } else { //Tails
+                    if next_numerator < denominator {
+                        return false; //2n < d
                     } else {
-                        numerator = new_numerator - denominator;
+                        numerator = next_numerator - denominator; //2n was greater than d so set it to 2n - d
                     }
                 }
-            } else {
-                if self.next() {
-                    return true; //numerator must have been more than half the denominator
-                } else {
-                    numerator = numerator.wrapping_sub(denominator).wrapping_add(numerator);
+            } else {//Special branch just for massive numbers.
+                //2n > usize::max >= d so 2n >= d
+                if self.next() { //heads
+                    return true; 
+                } else { //tails
+                    numerator = numerator.wrapping_sub(denominator).wrapping_add(numerator); //2n - d
                 }
             }
         }
@@ -66,7 +88,7 @@ impl<R: RngCore> CoinFlipper<R> {
             if zeros >= self.chunk_remaining {
                 n -= self.chunk_remaining;
             } else {
-                self.chunk_remaining -= (zeros + 1);
+                self.chunk_remaining -= zeros + 1;
                 self.chunk = self.chunk >> (zeros + 1);
                 return false;
             }
