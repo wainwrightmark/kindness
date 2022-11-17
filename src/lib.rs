@@ -70,7 +70,7 @@ where
             return if lower == 0 {
                 None
             } else {
-                self.nth(rng.gen_range(0..lower))
+                self.nth(gen_index(rng, lower))
             };
         }
 
@@ -81,9 +81,7 @@ where
         // Continue until the iterator is exhausted
         loop {
             if lower > 1 {
-                let ix = coin_flipper
-                    .rng
-                    .gen_range(0..(lower + consumed));
+                let ix = gen_index(coin_flipper.rng, lower + consumed);
                 let skip = if ix < lower {
                     result = self.nth(ix);
                     lower - (ix + 1)
@@ -286,17 +284,17 @@ where
     }
 }
 
-// // Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
-// // possible, primarily in order to produce the same output on 32-bit and 64-bit
-// // platforms.
-// #[inline]
-// fn gen_index<R: Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
-//     if ubound <= (core::u32::MAX as usize) {
-//         rng.gen_range(0..ubound as u32) as usize
-//     } else {
-//         rng.gen_range(0..ubound)
-//     }
-// }
+// Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
+// possible, primarily in order to produce the same output on 32-bit and 64-bit
+// platforms.
+#[inline]
+fn gen_index<R: rand::Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
+    if ubound <= (core::u32::MAX as usize) {
+        rng.gen_range(0..ubound as u32) as usize
+    } else {
+        rng.gen_range(0..ubound)
+    }
+}
 
 #[cfg(test)]
 mod tests {
