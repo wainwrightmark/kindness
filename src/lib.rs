@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.2.0")]
-#![deny(missing_docs)]
-#![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![allow(missing_docs)]
+#![allow(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
@@ -39,10 +39,12 @@
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
 mod chooser;
+mod coin_flipper;
 
 use core::cmp::Ordering;
 
 use chooser::Chooser;
+use coin_flipper::CoinFlipper;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -72,13 +74,16 @@ where
             };
         }
 
-        let mut choice_iterator = Chooser::new_zero(rng);
+        //let mut choice_iterator = Chooser::new_zero(rng);
+        let mut coin_flipper = CoinFlipper::new(rng);
+        let mut consumed = 0;
+
         // Continue until the iterator is exhausted
         loop {
             if lower > 1 {
-                let ix = choice_iterator
+                let ix = coin_flipper
                     .rng
-                    .gen_range(0..(lower + choice_iterator.get_consumed()));
+                    .gen_range(0..(lower + consumed));
                 let skip = if ix < lower {
                     result = self.nth(ix);
                     lower - (ix + 1)
@@ -88,7 +93,7 @@ where
                 if upper == Some(lower) {
                     return result;
                 }
-                choice_iterator.set_consumed(choice_iterator.get_consumed() + lower);
+                consumed = consumed + lower;
                 if skip > 0 {
                     self.nth(skip - 1);
                 }
@@ -97,7 +102,8 @@ where
                 if elem.is_none() {
                     return result;
                 }
-                if choice_iterator.next() {
+                consumed += 1;
+                if coin_flipper.gen_ratio_one_over(consumed) {
                     result = elem;
                 }
             }
@@ -280,6 +286,18 @@ where
     }
 }
 
+// // Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
+// // possible, primarily in order to produce the same output on 32-bit and 64-bit
+// // platforms.
+// #[inline]
+// fn gen_index<R: Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
+//     if ubound <= (core::u32::MAX as usize) {
+//         rng.gen_range(0..ubound as u32) as usize
+//     } else {
+//         rng.gen_range(0..ubound)
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use core::ops::Range;
@@ -331,6 +349,8 @@ mod tests {
             assert!(x > LOWER_TOLERANCE);
             assert!(x < UPPER_TOLERANCE);
         }
+
+        //println!("{}", &rng.count);
 
         assert_contains(RUNS..2000000, &rng.count);
     }

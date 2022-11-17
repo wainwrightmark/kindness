@@ -57,7 +57,7 @@ impl<R: RngCore> Chooser<R> {
 
     /// Resets the chunk to one. Does not reset the chunk, but decrements the `chunk_remaining` by 1;
     /// This is okay because the product of any sequence of n consecutive integers is a multiple of the product of the first n integers
-    pub fn set_consumed_to_one(&mut self) {
+    pub fn set_consumed_to_one(&mut self) { //TODO remove this
         self.consumed = 1;
         if self.chunk_remaining > 0 {
             self.chunk_remaining -= 1;
@@ -70,7 +70,7 @@ impl<R: RngCore> Chooser<R> {
     pub fn set_consumed(&mut self, consumed: usize) {
         self.consumed = consumed;
         //no need to reset the chunk
-        self.chunk_remaining = 0;
+        self.chunk_remaining = 0; //TODO subtract consumed from chunk_remaining instead - check this is valid
     }
 
     #[inline]
