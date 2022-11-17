@@ -43,7 +43,7 @@ mod coin_flipper;
 
 use core::cmp::Ordering;
 
-use chooser::Chooser;
+//use chooser::Chooser;
 use coin_flipper::CoinFlipper;
 
 impl<T: Iterator + Sized> Kindness for T {}
@@ -138,22 +138,24 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = Chooser::new_one(rng);
+        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+        let mut consumed = 1;
 
         for item in self {
             let item_key = f(&item);
             match item_key.cmp(&current_key) {
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
+                    consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if choice_iterator.next() {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.set_consumed_to_one();
+                    consumed = 1;
                 }
             }
         }
@@ -174,23 +176,25 @@ where
         Self::Item: Ord,
     {
         let Some(first)  = self.next() else {
-        return None;
-    };
+            return None;
+        };
 
         let mut current = first;
-        let mut choice_iterator = Chooser::new_one(rng);
+        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+        let mut consumed = 1;
 
         for item in self {
             match compare(&item, &current) {
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
-                    if choice_iterator.next() {
+                    consumed += 1;
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Greater => {
                     current = item; //this is the new maximum
-                    choice_iterator.set_consumed_to_one();
+                    consumed = 1;
                 }
             }
         }
@@ -223,22 +227,24 @@ where
 
         let mut current_key = f(&first);
         let mut current = first;
-        let mut choice_iterator = Chooser::new_one(rng);
+        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+        let mut consumed = 1;
 
         for item in self {
             let item_key = f(&item);
             match item_key.cmp(&current_key) {
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
+                    consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if choice_iterator.next() {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
                     current_key = item_key; //this is the new maximum
                     current = item;
-                    choice_iterator.set_consumed_to_one();
+                    consumed = 1;
                 }
             }
         }
@@ -263,19 +269,21 @@ where
     };
 
         let mut current = first;
-        let mut choice_iterator = Chooser::new_one(rng);
+        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+        let mut consumed = 1;
 
         for item in self {
             match compare(&item, &current) {
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
-                    if choice_iterator.next() {
+                    consumed += 1;
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
                 core::cmp::Ordering::Less => {
                     current = item; //this is the new maximum
-                    choice_iterator.set_consumed_to_one();
+                    consumed = 1;
                 }
             }
         }

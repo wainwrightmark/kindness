@@ -119,7 +119,6 @@ mod tests {
         println!("Count: {count}");
         assert_contains(15.5..16.5, &average_gens); //Should be about 16
 
-        
         assert!(count < 2); //Should not get it twice
     }
 
