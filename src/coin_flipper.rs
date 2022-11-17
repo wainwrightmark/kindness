@@ -50,7 +50,7 @@ impl<R: RngCore> CoinFlipper<R> {
             if let Some(next_numerator) = numerator.checked_mul(2) { //This condition will usually be true
                 
                 if self.next() { //Heads
-                    numerator = next_numerator; 
+                    numerator = next_numerator; //if 2n >= d we this will be checked at the start of the next loop
                 } else { //Tails
                     if next_numerator < denominator {
                         return false; //2n < d
@@ -70,25 +70,34 @@ impl<R: RngCore> CoinFlipper<R> {
         return true;
     }
 
-    pub fn next(&mut self) -> bool {
-        if self.chunk_remaining == 0 {
-            self.chunk = self.rng.next_u32();
-            self.chunk_remaining = u32::BITS;
-        }
+    /// Consume one bit of randomness
+    /// Has a one in two chance of returning true
+    fn next(&mut self) -> bool {
 
-        let result = self.chunk.trailing_zeros() > 0;
-        self.chunk = self.chunk.wrapping_shr(1);
-        self.chunk_remaining = self.chunk_remaining.saturating_sub(1);
+        if let Some(new_rem) = self.chunk_remaining.checked_sub(1)
+        {
+            self.chunk_remaining = new_rem;
+        }
+        else {
+            self.chunk = self.rng.next_u32();
+            self.chunk_remaining = u32::BITS - 1;
+        };
+
+        let result = self.chunk.trailing_zeros() > 0; //TODO check if there is a faster test the last bit
+        self.chunk = self.chunk.wrapping_shr(1);        
         return result;
     }
 
-    pub fn all_next(&mut self, mut n: u32) -> bool {
+    /// If the next n bits of randomness are all zeroes, consume them and return true.
+    /// Otherwise return false and consume the number of zeroes plus one
+    /// Has a one in 2 to the n chance of returning true
+    fn all_next(&mut self, mut n: u32) -> bool {
         let mut zeros = self.chunk.trailing_zeros();
-        while self.chunk_remaining < n {
+        while self.chunk_remaining < n { //Check we have enough randomness left
             if zeros >= self.chunk_remaining {
-                n -= self.chunk_remaining;
+                n -= self.chunk_remaining; // Remaining bits are zeroes, we will need to generate more bits and continue
             } else {
-                self.chunk_remaining -= zeros + 1;
+                self.chunk_remaining -= zeros + 1; //There was a one in the remaining bits so we can consume it and continue
                 self.chunk = self.chunk >> (zeros + 1);
                 return false;
             }
@@ -98,9 +107,9 @@ impl<R: RngCore> CoinFlipper<R> {
         }
 
         let result = zeros >= n;
-        let shrink = if result { n } else { zeros + 1 };
-        self.chunk = self.chunk.wrapping_shr(shrink);
-        self.chunk_remaining = self.chunk_remaining.saturating_sub(shrink);
+        let bits_to_consume = if result { n } else { zeros + 1 };
+        self.chunk = self.chunk.wrapping_shr(bits_to_consume);
+        self.chunk_remaining = self.chunk_remaining.saturating_sub(bits_to_consume);
 
         return result;
     }

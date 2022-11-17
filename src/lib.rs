@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-#![doc(html_root_url = "https://docs.rs/kindness/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/kindness/0.3.0")]
 #![deny(missing_docs)]
 #![deny(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
