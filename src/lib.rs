@@ -101,7 +101,7 @@ where
                     return result;
                 }
                 consumed += 1;
-                if coin_flipper.gen_ratio_one_over(consumed) {
+                if coin_flipper.gen_ratio(1, consumed) {
                     result = elem;
                 }
             }
@@ -148,7 +148,7 @@ where
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio_one_over(consumed) {
+                    if coin_flipper.gen_ratio(1, consumed) {
                         current = item;
                     }
                 }
@@ -188,7 +188,7 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
-                    if coin_flipper.gen_ratio_one_over(consumed) {
+                    if coin_flipper.gen_ratio(1, consumed) {
                         current = item;
                     }
                 }
@@ -237,7 +237,7 @@ where
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio_one_over(consumed) {
+                    if coin_flipper.gen_ratio(1, consumed) {
                         current = item;
                     }
                 }
@@ -277,7 +277,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
-                    if coin_flipper.gen_ratio_one_over(consumed) {
+                    if coin_flipper.gen_ratio(1, consumed) {
                         current = item;
                     }
                 }
