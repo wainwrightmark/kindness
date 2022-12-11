@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.3.0")]
 #![deny(missing_docs)]
-#![deny(warnings, dead_code, unused_imports, unused_mut)]
+#![allow(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
@@ -38,7 +38,6 @@
 //! [crates.io]: https://crates.io/crates/kindness
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
-mod chooser;
 mod coin_flipper;
 
 use core::cmp::Ordering;
@@ -96,12 +95,15 @@ where
                     self.nth(skip - 1);
                 }
             } else {
-                let elem = self.next();
+                consumed += 1;
+                let skip = coin_flipper.try_skip(consumed as u32) as usize;
+                let elem = self.nth(skip);
                 if elem.is_none() {
                     return result;
-                }
-                consumed += 1;
-                if coin_flipper.gen_ratio(1, consumed) {
+                }             
+                consumed += skip;   
+                
+                if coin_flipper.gen_ratio_one_over(consumed) {
                     result = elem;
                 }
             }
@@ -148,7 +150,7 @@ where
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio(1, consumed) {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
@@ -188,7 +190,7 @@ where
                 core::cmp::Ordering::Less => {}
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
-                    if coin_flipper.gen_ratio(1, consumed) {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
@@ -237,7 +239,7 @@ where
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
                     //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio(1, consumed) {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
@@ -277,7 +279,7 @@ where
                 core::cmp::Ordering::Greater => {}
                 core::cmp::Ordering::Equal => {
                     consumed += 1;
-                    if coin_flipper.gen_ratio(1, consumed) {
+                    if coin_flipper.gen_ratio_one_over(consumed) {
                         current = item;
                     }
                 }
