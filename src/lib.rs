@@ -47,6 +47,90 @@ use coin_flipper::CoinFlipper;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
+fn choose_best_by_key<
+    I: Iterator + Sized,
+    B: Ord,
+    R: rand::Rng,
+    F: FnMut(&I::Item) -> B,
+    const MAX: bool,
+>(
+    mut iterator: I,
+    rng: &mut R,
+    mut f: F,
+) -> Option<I::Item> {
+    let Some(first)  = iterator.next() else {
+        return None;
+    };
+
+    let mut current_key = f(&first);
+    let mut current = first;
+    let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+    let mut consumed = 1;
+
+    for item in iterator {
+        let item_key = f(&item);
+        match item_key.cmp(&current_key) {
+            core::cmp::Ordering::Equal => {
+                consumed += 1;
+                //Choose either iter or current randomly, see random_element for more
+                if coin_flipper.gen_ratio_one_over(consumed) {
+                    current = item;
+                }
+            }
+            ordering => {
+                if MAX == (ordering == core::cmp::Ordering::Greater) {
+                    current_key = item_key; //this is the new maximum
+                    current = item;
+                    consumed = 1;
+                }
+            }
+        }
+    }
+
+    Some(current)
+}
+
+fn choose_best_by<
+    I: Iterator + Sized,
+    R: rand::Rng,
+    F: FnMut(&I::Item, &I::Item) -> Ordering,
+    const MAX: bool,
+>(
+    mut iterator: I,
+    rng: &mut R,
+    mut compare: F,
+) -> Option<I::Item>
+where
+    I::Item: Ord,
+{
+    let Some(first)  = iterator.next() else {
+        return None;
+    };
+
+    let mut current = first;
+    let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
+    let mut consumed = 1;
+
+    for item in iterator {
+        match compare(&item, &current) {
+            core::cmp::Ordering::Equal => {
+                consumed += 1;
+                if coin_flipper.gen_ratio_one_over(consumed) {
+                    current = item;
+                }
+            }
+            ordering => {
+                if MAX == (ordering == core::cmp::Ordering::Greater) {
+                    current = item; //this is the new maximum
+                    consumed = 1;
+                }
+            }
+        }
+    }
+
+    Some(current)
+}
+
 /// An [`Iterator`] blanket implementation that provides extra adaptors and
 /// methods for returning random elements.
 pub trait Kindness: Iterator
@@ -100,9 +184,9 @@ where
                 let elem = self.nth(skip);
                 if elem.is_none() {
                     return result;
-                }             
-                consumed += skip;   
-                
+                }
+                consumed += skip;
+
                 if coin_flipper.gen_ratio_one_over(consumed) {
                     result = elem;
                 }
@@ -134,35 +218,7 @@ where
         rng: &mut R,
         mut f: F,
     ) -> Option<Self::Item> {
-        let Some(first)  = self.next() else {
-            return None;
-        };
-
-        let mut current_key = f(&first);
-        let mut current = first;
-        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
-        let mut consumed = 1;
-
-        for item in self {
-            let item_key = f(&item);
-            match item_key.cmp(&current_key) {
-                core::cmp::Ordering::Less => {}
-                core::cmp::Ordering::Equal => {
-                    consumed += 1;
-                    //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio_one_over(consumed) {
-                        current = item;
-                    }
-                }
-                core::cmp::Ordering::Greater => {
-                    current_key = item_key; //this is the new maximum
-                    current = item;
-                    consumed = 1;
-                }
-            }
-        }
-
-        Some(current)
+        choose_best_by_key::<Self, B, R, F, true>(self, rng, f)
     }
 
     /// Returns a random maximum element.
@@ -177,31 +233,7 @@ where
     where
         Self::Item: Ord,
     {
-        let Some(first)  = self.next() else {
-            return None;
-        };
-
-        let mut current = first;
-        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
-        let mut consumed = 1;
-
-        for item in self {
-            match compare(&item, &current) {
-                core::cmp::Ordering::Less => {}
-                core::cmp::Ordering::Equal => {
-                    consumed += 1;
-                    if coin_flipper.gen_ratio_one_over(consumed) {
-                        current = item;
-                    }
-                }
-                core::cmp::Ordering::Greater => {
-                    current = item; //this is the new maximum
-                    consumed = 1;
-                }
-            }
-        }
-
-        Some(current)
+        choose_best_by::<Self, R, F, true>(self, rng, compare)
     }
 
     /// Return a random minimum element of the iterator.  
@@ -223,35 +255,7 @@ where
         rng: &mut R,
         mut f: F,
     ) -> Option<Self::Item> {
-        let Some(first)  = self.next() else {
-            return None;
-        };
-
-        let mut current_key = f(&first);
-        let mut current = first;
-        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
-        let mut consumed = 1;
-
-        for item in self {
-            let item_key = f(&item);
-            match item_key.cmp(&current_key) {
-                core::cmp::Ordering::Greater => {}
-                core::cmp::Ordering::Equal => {
-                    consumed += 1;
-                    //Choose either iter or current randomly, see random_element for more
-                    if coin_flipper.gen_ratio_one_over(consumed) {
-                        current = item;
-                    }
-                }
-                core::cmp::Ordering::Less => {
-                    current_key = item_key; //this is the new maximum
-                    current = item;
-                    consumed = 1;
-                }
-            }
-        }
-
-        Some(current)
+        choose_best_by_key::<Self, B, R, F, false>(self, rng, f)
     }
 
     /// Returns a random minimum element.
@@ -266,31 +270,7 @@ where
     where
         Self::Item: Ord,
     {
-        let Some(first)  = self.next() else {
-        return None;
-    };
-
-        let mut current = first;
-        let mut coin_flipper = coin_flipper::CoinFlipper::new(rng);
-        let mut consumed = 1;
-
-        for item in self {
-            match compare(&item, &current) {
-                core::cmp::Ordering::Greater => {}
-                core::cmp::Ordering::Equal => {
-                    consumed += 1;
-                    if coin_flipper.gen_ratio_one_over(consumed) {
-                        current = item;
-                    }
-                }
-                core::cmp::Ordering::Less => {
-                    current = item; //this is the new maximum
-                    consumed = 1;
-                }
-            }
-        }
-
-        Some(current)
+        choose_best_by::<Self, R, F, false>(self, rng, compare)
     }
 }
 
