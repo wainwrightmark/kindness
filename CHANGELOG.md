@@ -9,6 +9,11 @@ Possible header types:
 - `Bug Fixes` for any bug fixes.
 - `Breaking Changes` for any backwards-incompatible changes.#
 
+## v0.4.0 (2022-12-12)
+- Add `std` feature
+- Add `choose-unique()` and `choose_unique_by_key()` behind the std feature
+- Performance improvements
+
 ## v0.3.0 (2022-11-17)
 
 - Use a different method to perform comparisons, improving performance for long iterators.

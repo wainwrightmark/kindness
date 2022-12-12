@@ -19,7 +19,7 @@ This crate works with Cargo with a `Cargo.toml` like:
 
 ```toml
 [dependencies]
-kindness = "0.3.0"
+kindness = "0.4.0"
 rand = "0.8.5"
 ```
 
