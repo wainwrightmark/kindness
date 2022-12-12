@@ -276,10 +276,7 @@ where
     /// Elements are chosen randomly from the duplicates.
     /// Duplicates are detected using hash and equality.
     #[cfg(any(test, feature = "std"))]
-    fn choose_unique<R: rand::Rng>(
-        mut self,
-        rng: &mut R,
-    ) ->  unique::iterators::Unique<Self::Item>
+    fn choose_unique<R: rand::Rng>(mut self, rng: &mut R) -> unique::iterators::Unique<Self::Item>
     where
         Self::Item: std::hash::Hash + Eq,
     {
@@ -396,16 +393,15 @@ mod tests {
             assert!(x < UPPER_TOLERANCE * 10);
         }
     }
-    
+
     #[test]
     fn test_choose_unique_by_key() {
-        
         let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
 
         for _ in 0..RUNS {
             let range = (0..LENGTH);
-            let elements = range.choose_unique_by_key(&mut rng, |x|x / 10);
+            let elements = range.choose_unique_by_key(&mut rng, |x| x / 10);
 
             for x in elements {
                 counts[x] += 1;
