@@ -9,8 +9,8 @@ Methods for choosing random elements from an iterator.
 
 Includes `choose_item()`, `choose_max()`, `choose_max_by()`, `choose_max_by_key()`, `choose_min()`, `choose_min_by()`, `choose_min_by_key()`
 
-Does not allocate or iterate iterators more than once. Uses every bit of randomness generated as efficiently as possible, making an average of 16 comparisons per u32.  
-The `choose_item()` method is currently about twice as fast as the `choose()` method in the rand crate for iterators without a size hint.
+`no_std` by default. The `std` feature unlocks the `choose_unique()` and `choose_unique_by_key()` methods.
+
 If you are confused by the name of the crate, think "random max of".
 
 ---

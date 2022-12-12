@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(test, feature = "std")), no_std)]
 #![doc(html_root_url = "https://docs.rs/kindness/0.3.0")]
 #![deny(missing_docs)]
 #![allow(warnings, dead_code, unused_imports, unused_mut)]
@@ -39,11 +39,10 @@
 //! [`README.md`]: https://github.com/wainwrightmark/kindness
 
 mod coin_flipper;
+mod unique;
 
-use core::cmp::Ordering;
-
-//use chooser::Chooser;
 use coin_flipper::CoinFlipper;
+use core::cmp::Ordering;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
@@ -272,6 +271,85 @@ where
     {
         choose_best_by::<Self, R, F, false>(self, rng, compare)
     }
+
+    /// Returns an iterator over unique elements of this iterator.
+    /// Elements are chosen randomly from the duplicates.
+    /// Duplicates are detected using hash and equality.
+    #[cfg(any(test, feature = "std"))]
+    fn choose_unique<R: rand::Rng>(
+        mut self,
+        rng: &mut R,
+    ) ->  unique::iterators::Unique<Self::Item>
+    where
+        Self::Item: std::hash::Hash + Eq,
+    {
+        use std::collections::HashMap;
+
+        use crate::unique::iterators::Unique;
+        let mut map: HashMap<Self::Item, usize> = Default::default();
+        let mut coin_flipper = CoinFlipper::new(rng);
+        for item in self {
+            if let Some((previous_key, current_count)) = map.remove_entry(&item) {
+                let new_count = current_count + 1;
+
+                let key_to_insert = if coin_flipper.gen_ratio_one_over(new_count) {
+                    item
+                } else {
+                    previous_key
+                };
+
+                map.insert(key_to_insert, new_count);
+            } else {
+                map.insert(item, 1);
+            }
+
+            // let new_count = *map.entry(item).and_modify(|x| *x += 1).or_insert(1);
+            // if new_count > 1 {
+            //     if coin_flipper.gen_ratio_one_over(new_count) {
+            //         //We have randomly decided to change the key
+            //         map.remove(&item);
+            //         map.insert(item, new_count);
+            //     }
+            // }
+        }
+
+        Unique::new(map.into_keys())
+    }
+
+    /// Returns an iterator over unique elements of this iterator.
+    /// Duplicates are detected by comparing the key they map to with the keying function f by hash and equality.
+    /// Elements are chosen randomly from the duplicates.
+    /// Duplicates are detected using hash and equality.
+    #[cfg(any(test, feature = "std"))]
+    /// Choose a
+    fn choose_unique_by_key<R: rand::Rng, K: Eq + std::hash::Hash, F: FnMut(&Self::Item) -> K>(
+        mut self,
+        rng: &mut R,
+        mut f: F,
+    ) -> unique::iterators::UniqueByKey<K, Self::Item> {
+        use std::collections::HashMap;
+        let mut map: HashMap<K, (Self::Item, usize)> = Default::default();
+        let mut coin_flipper = CoinFlipper::new(rng);
+        for element in self {
+            let v = f(&element);
+            let entry = map.entry(v);
+            let entry = entry.and_modify(|(e, c)| *c += 1);
+
+            match entry {
+                std::collections::hash_map::Entry::Occupied(mut occupied) => {
+                    let (previous, new_count) = occupied.get_mut();
+                    if coin_flipper.gen_ratio_one_over(*new_count) {
+                        *previous = element;
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(vacant) => {
+                    vacant.insert((element, 1));
+                }
+            }
+        }
+
+        unique::iterators::UniqueByKey::new(map.into_values())
+    }
 }
 
 // Sample a number uniformly between 0 and `ubound`. Uses 32-bit sampling where
@@ -288,7 +366,7 @@ fn gen_index<R: rand::Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use core::ops::Range;
+    use core::{hash::Hash, ops::Range};
 
     use crate::Kindness;
     use rand::{Rng, RngCore, SeedableRng};
@@ -297,6 +375,49 @@ mod tests {
     const LENGTH: usize = 100;
     const LOWER_TOLERANCE: usize = 60;
     const UPPER_TOLERANCE: usize = 140;
+
+    #[test]
+    fn test_choose_unique() {
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
+        let mut rng = get_rng();
+
+        for _ in 0..RUNS {
+            let range = (0..LENGTH).map(RoughNumber);
+            let elements = range.choose_unique(&mut rng);
+
+            for x in elements {
+                counts[x.0] += 1;
+            }
+        }
+
+        insta::assert_debug_snapshot!(counts);
+        for x in counts {
+            assert!(x > LOWER_TOLERANCE * 10);
+            assert!(x < UPPER_TOLERANCE * 10);
+        }
+    }
+    
+    #[test]
+    fn test_choose_unique_by_key() {
+        
+        let mut counts: [usize; LENGTH] = [0; LENGTH];
+        let mut rng = get_rng();
+
+        for _ in 0..RUNS {
+            let range = (0..LENGTH);
+            let elements = range.choose_unique_by_key(&mut rng, |x|x / 10);
+
+            for x in elements {
+                counts[x] += 1;
+            }
+        }
+
+        insta::assert_debug_snapshot!(counts);
+        for x in counts {
+            assert!(x > LOWER_TOLERANCE * 10);
+            assert!(x < UPPER_TOLERANCE * 10);
+        }
+    }
 
     #[test]
     fn test_random_element_with_size_hint() {
@@ -549,8 +670,22 @@ mod tests {
     }
 
     /// A number whose ordering is only affected by the tens digit e.g 42 >= 43
-    #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+    #[derive(Debug, Copy, Clone)]
     struct RoughNumber(pub usize);
+
+    impl Hash for RoughNumber {
+        fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+            (self.0 / 10).hash(state);
+        }
+    }
+
+    impl Eq for RoughNumber {}
+
+    impl PartialEq for RoughNumber {
+        fn eq(&self, other: &Self) -> bool {
+            (self.0 / 10) == (other.0 / 10)
+        }
+    }
 
     impl Ord for RoughNumber {
         fn cmp(&self, other: &Self) -> core::cmp::Ordering {
