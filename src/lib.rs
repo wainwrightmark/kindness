@@ -284,32 +284,25 @@ where
     where
         Self::Item: std::hash::Hash + Eq,
     {
-        use std::collections::HashMap;
+        use hashbrown::HashMap;
         let mut map: HashMap<Self::Item, usize> = Default::default();
         let mut coin_flipper = CoinFlipper::new(rng);
         for item in self {
-            if let Some((previous_key, current_count)) = map.remove_entry(&item) {
-                let new_count = current_count + 1;
 
-                let key_to_insert = if coin_flipper.gen_ratio_one_over(new_count) {
-                    item
-                } else {
-                    previous_key
-                };
 
-                map.insert(key_to_insert, new_count);
-            } else {
-                map.insert(item, 1);
+            match map.entry(item){
+                hashbrown::hash_map::Entry::Occupied(mut o) => {
+                    let new_count = o.get() + 1;
+                    *o.get_mut() = new_count;
+                    if coin_flipper.gen_ratio_one_over(new_count) {
+                        //We have randomly decided to change the key
+                        o.replace_key();
+                    }
+                },
+                hashbrown::hash_map::Entry::Vacant(v) => {
+                    v.insert(1);
+                },
             }
-
-            // let new_count = *map.entry(item).and_modify(|x| *x += 1).or_insert(1);
-            // if new_count > 1 {
-            //     if coin_flipper.gen_ratio_one_over(new_count) {
-            //         //We have randomly decided to change the key
-            //         map.remove(&item);
-            //         map.insert(item, new_count);
-            //     }
-            // }
         }
 
         map.into_keys()

@@ -2,7 +2,7 @@
 pub mod iterators {
     use core::iter::FusedIterator;
 
-    pub type Unique<Item> = std::collections::hash_map::IntoKeys<Item, usize>;
+    pub type Unique<Item> = hashbrown::hash_map::IntoKeys<Item, usize>;
 
     #[derive(Debug)]
     /// An iterator adapter to filter out duplicate elements by a key.
