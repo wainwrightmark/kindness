@@ -44,6 +44,10 @@ mod unique;
 use coin_flipper::CoinFlipper;
 use core::cmp::Ordering;
 
+fn t_first<Item>(item: (Item, usize)) -> Item {
+    item.0
+}
+
 impl<T: Iterator + Sized> Kindness for T {}
 
 fn choose_best_by_key<
@@ -281,8 +285,6 @@ where
         Self::Item: std::hash::Hash + Eq,
     {
         use std::collections::HashMap;
-
-        use crate::unique::iterators::Unique;
         let mut map: HashMap<Self::Item, usize> = Default::default();
         let mut coin_flipper = CoinFlipper::new(rng);
         for item in self {
@@ -310,15 +312,13 @@ where
             // }
         }
 
-        Unique::new(map.into_keys())
+        map.into_keys()
     }
 
     /// Returns an iterator over unique elements of this iterator.
     /// Duplicates are detected by comparing the key they map to with the keying function f by hash and equality.
     /// Elements are chosen randomly from the duplicates.
-    /// Duplicates are detected using hash and equality.
     #[cfg(any(test, feature = "std"))]
-    /// Choose a
     fn choose_unique_by_key<R: rand::Rng, K: Eq + std::hash::Hash, F: FnMut(&Self::Item) -> K>(
         mut self,
         rng: &mut R,
@@ -344,7 +344,6 @@ where
                 }
             }
         }
-
         unique::iterators::UniqueByKey::new(map.into_values())
     }
 }
