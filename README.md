@@ -12,7 +12,7 @@ Includes `choose_item()`, `choose_max()`, `choose_max_by()`, `choose_max_by_key(
 `no_std` by default. The `std` feature unlocks the `choose_unique()` and `choose_unique_by_key()` methods.
 
 
-If you are confused by the name of the crate, think "random max of".
+The name of the crate is a pun. "Random max of kindness". I'm sorry.
 
 ---
 

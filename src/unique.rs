@@ -2,51 +2,7 @@
 pub mod iterators {
     use core::iter::FusedIterator;
 
-    #[derive(Debug)]
-    /// An iterator adapter to filter out duplicate elements.
-    pub struct Unique<K: Eq + std::hash::Hash> {
-        map: std::collections::hash_map::IntoKeys<K, usize>,
-    }
-
-    impl<K: Eq + std::hash::Hash> Unique<K> {
-        pub fn new(map: std::collections::hash_map::IntoKeys<K, usize>) -> Self {
-            Self { map }
-        }
-    }
-
-    impl<K: Eq + std::hash::Hash> ExactSizeIterator for Unique<K> {}
-
-    impl<K: Eq + std::hash::Hash> FusedIterator for Unique<K> {}
-
-    impl<K: Eq + std::hash::Hash> Iterator for Unique<K> {
-        type Item = K;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            self.map.next()
-        }
-
-        fn size_hint(&self) -> (usize, Option<usize>) {
-            self.map.size_hint()
-        }
-
-        fn count(self) -> usize
-        where
-            Self: Sized,
-        {
-            self.map.count()
-        }
-
-        fn last(self) -> Option<Self::Item>
-        where
-            Self: Sized,
-        {
-            self.map.last()
-        }
-
-        fn nth(&mut self, n: usize) -> Option<Self::Item> {
-            self.map.nth(n)
-        }
-    }
+    pub type Unique<Item> = hashbrown::hash_map::IntoKeys<Item, usize>;
 
     #[derive(Debug)]
     /// An iterator adapter to filter out duplicate elements by a key.
