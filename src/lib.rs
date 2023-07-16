@@ -20,11 +20,12 @@
 //!
 //! ```
 //! use kindness::*;
+//! use rand::rngs::StdRng;
 //!
 //!
 //! fn main()  {
 //!     use rand::SeedableRng;
-//!     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
+//!     let mut rng = StdRng::seed_from_u64(123);
 //!     let m =[3,2,1,2,3].iter().choose_max(&mut rng).unwrap();
 //!     assert_eq!(*m, 3)
 //! }
@@ -43,17 +44,15 @@ mod unique;
 
 use coin_flipper::CoinFlipper;
 use core::cmp::Ordering;
-
-fn t_first<Item>(item: (Item, usize)) -> Item {
-    item.0
-}
+use core::hash::{BuildHasher, Hash};
+use rand::Rng;
 
 impl<T: Iterator + Sized> Kindness for T {}
 
 fn choose_best_by_key<
     I: Iterator + Sized,
     B: Ord,
-    R: rand::Rng,
+    R: Rng,
     F: FnMut(&I::Item) -> B,
     const MAX: bool,
 >(
@@ -95,7 +94,7 @@ fn choose_best_by_key<
 
 fn choose_best_by<
     I: Iterator + Sized,
-    R: rand::Rng,
+    R: Rng,
     F: FnMut(&I::Item, &I::Item) -> Ordering,
     const MAX: bool,
 >(
@@ -145,7 +144,7 @@ where
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
     /// Will iterate the entire enumerable unless it has a size hint which indicates an exact length.
     #[inline]
-    fn choose_item<R: rand::Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
+    fn choose_item<R: Rng>(mut self, rng: &mut R) -> Option<Self::Item> {
         let (mut lower, mut upper) = self.size_hint();
         let mut result = None;
 
@@ -205,7 +204,7 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_max<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
+    fn choose_max<R: Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
     {
@@ -216,7 +215,7 @@ where
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_max_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+    fn choose_max_by_key<B: Ord, R: Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
         mut f: F,
@@ -228,7 +227,7 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_max_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+    fn choose_max_by<R: Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
         mut compare: F,
@@ -242,7 +241,7 @@ where
     /// Return a random minimum element of the iterator.  
     /// Returns none if the iterator is empty.  
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_min<R: rand::Rng>(self, rng: &mut R) -> Option<Self::Item>
+    fn choose_min<R: Rng>(self, rng: &mut R) -> Option<Self::Item>
     where
         Self::Item: Ord,
     {
@@ -253,7 +252,7 @@ where
     /// specified function.
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_min_by_key<B: Ord, R: rand::Rng, F: FnMut(&Self::Item) -> B>(
+    fn choose_min_by_key<B: Ord, R: Rng, F: FnMut(&Self::Item) -> B>(
         mut self,
         rng: &mut R,
         mut f: F,
@@ -265,7 +264,7 @@ where
     ///
     /// If the iterator is empty, [`None`] is returned.
     /// If the iterator has more than `usize::Max` elements, later elements will be slightly more likely.
-    fn choose_min_by<R: rand::Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
+    fn choose_min_by<R: Rng, F: FnMut(&Self::Item, &Self::Item) -> Ordering>(
         mut self,
         rng: &mut R,
         mut compare: F,
@@ -279,64 +278,116 @@ where
     /// Returns an iterator over unique elements of this iterator.
     /// Elements are chosen randomly from the duplicates.
     /// Duplicates are detected using hash and equality.
-    #[cfg(any(test, feature = "std"))]
-    fn choose_unique<R: rand::Rng>(mut self, rng: &mut R) -> unique::iterators::Unique<Self::Item>
+    /// Uses the global allocator and the default hasher which is safe from HashDos attacks.
+    #[cfg(any(test, all(feature = "hashbrown", feature = "std")))]
+    fn choose_unique<R: Rng>(
+        mut self,
+        rng: &mut R,
+    ) -> unique::iterators::Unique<Self::Item, allocator_api2::alloc::Global>
     where
-        Self::Item: std::hash::Hash + Eq,
+        Self::Item: Hash + Eq,
     {
-        use hashbrown::HashMap;
-        let mut map: HashMap<Self::Item, usize> = Default::default();
+        let hash_builder = std::collections::hash_map::RandomState::new();
+        let alloc = allocator_api2::alloc::Global;
+        self.choose_unique_with_hasher_in(rng, hash_builder, alloc)
+    }
+
+    /// Returns an iterator over unique elements of this iterator.
+    /// Elements are chosen randomly from the duplicates.
+    /// Duplicates are detected using hash and equality.
+    ///
+    /// You must supply a `BuildHasher` and an `Allocator` to use this.
+    /// The `std` feature provides a more ergonomic `choose_unique`
+    #[cfg(any(test, all(feature = "hashbrown")))]
+    fn choose_unique_with_hasher_in<
+        R: Rng,
+        S: BuildHasher,
+        A: allocator_api2::alloc::Allocator + Clone,
+    >(
+        mut self,
+        rng: &mut R,
+        hash_builder: S,
+        alloc: A,
+    ) -> unique::iterators::Unique<Self::Item, A>
+    where
+        Self::Item: Hash + Eq,
+    {
+        use hashbrown::{hash_map::Entry, HashMap};
+        let mut map: HashMap<Self::Item, usize, S, A> =
+            HashMap::with_hasher_in(hash_builder, alloc);
         let mut coin_flipper = CoinFlipper::new(rng);
         for item in self {
-
-
-            match map.entry(item){
-                hashbrown::hash_map::Entry::Occupied(mut o) => {
+            match map.entry(item) {
+                Entry::Occupied(mut o) => {
                     let new_count = o.get() + 1;
                     *o.get_mut() = new_count;
                     if coin_flipper.gen_ratio_one_over(new_count) {
                         //We have randomly decided to change the key
                         o.replace_key();
                     }
-                },
-                hashbrown::hash_map::Entry::Vacant(v) => {
+                }
+                Entry::Vacant(v) => {
                     v.insert(1);
-                },
+                }
             }
         }
 
         map.into_keys()
     }
-
-    /// Returns an iterator over unique elements of this iterator.
-    /// Duplicates are detected by comparing the key they map to with the keying function f by hash and equality.
+    /// Returns an iterator over unique elements of this iterator.    
     /// Elements are chosen randomly from the duplicates.
-    #[cfg(any(test, feature = "std"))]
-    fn choose_unique_by_key<R: rand::Rng, K: Eq + std::hash::Hash, F: FnMut(&Self::Item) -> K>(
+    /// Duplicates are detected by comparing the key they map to with the keying function `get_key` by hash and equality.
+    /// `get_key` is called exactly once for each element.
+    #[cfg(any(test, all(feature = "hashbrown", feature = "std")))]
+    fn choose_unique_by_key<R: Rng, K: Eq + Hash, F: FnMut(&Self::Item) -> K>(
         mut self,
         rng: &mut R,
-        mut f: F,
-    ) -> unique::iterators::UniqueByKey<K, Self::Item> {
-        use std::collections::HashMap;
-        let mut map: HashMap<K, (Self::Item, usize)> = Default::default();
+        mut get_key: F,
+    ) -> unique::iterators::UniqueByKey<K, Self::Item, allocator_api2::alloc::Global> {
+        let hash_builder = std::collections::hash_map::RandomState::new();
+        let alloc = allocator_api2::alloc::Global;
+        self.choose_unique_by_key_with_hasher_in(rng, get_key, hash_builder, alloc)
+    }
+
+    /// Returns an iterator over unique elements of this iterator.    
+    /// Elements are chosen randomly from the duplicates.
+    /// Duplicates are detected by comparing the key they map to with the keying function `get_key` by hash and equality.
+    /// `get_key` is called exactly once for each element.
+    #[cfg(any(test, feature = "hashbrown"))]
+    fn choose_unique_by_key_with_hasher_in<
+        R: Rng,
+        K: Eq + Hash,
+        F: FnMut(&Self::Item) -> K,
+        S: BuildHasher,
+        A: allocator_api2::alloc::Allocator + Clone,
+    >(
+        mut self,
+        rng: &mut R,
+        mut get_key: F,
+        hash_builder: S,
+        alloc: A,
+    ) -> unique::iterators::UniqueByKey<K, Self::Item, A> {
+        use hashbrown::{hash_map::Entry, HashMap};
+        let mut map: HashMap<K, (Self::Item, usize), S, A> =
+            HashMap::with_hasher_in(hash_builder, alloc);
         let mut coin_flipper = CoinFlipper::new(rng);
         for element in self {
-            let v = f(&element);
-            let entry = map.entry(v);
-            let entry = entry.and_modify(|(e, c)| *c += 1);
+            let v = get_key(&element);
+            let entry = map.entry(v).and_modify(|(e, c)| *c += 1);
 
             match entry {
-                std::collections::hash_map::Entry::Occupied(mut occupied) => {
+                Entry::Occupied(mut occupied) => {
                     let (previous, new_count) = occupied.get_mut();
                     if coin_flipper.gen_ratio_one_over(*new_count) {
                         *previous = element;
                     }
                 }
-                std::collections::hash_map::Entry::Vacant(vacant) => {
+                Entry::Vacant(vacant) => {
                     vacant.insert((element, 1));
                 }
             }
         }
+
         unique::iterators::UniqueByKey::new(map.into_values())
     }
 }
@@ -345,7 +396,7 @@ where
 // possible, primarily in order to produce the same output on 32-bit and 64-bit
 // platforms.
 #[inline]
-fn gen_index<R: rand::Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
+fn gen_index<R: Rng + ?Sized>(rng: &mut R, ubound: usize) -> usize {
     if ubound <= (core::u32::MAX as usize) {
         rng.gen_range(0..ubound as u32) as usize
     } else {
@@ -358,7 +409,7 @@ mod tests {
     use core::{hash::Hash, ops::Range};
 
     use crate::Kindness;
-    use rand::{Rng, RngCore, SeedableRng};
+    use rand::{Rng, RngCore, SeedableRng, rngs::StdRng};
 
     const RUNS: usize = 10000;
     const LENGTH: usize = 100;
@@ -693,8 +744,8 @@ mod tests {
         }
     }
 
-    fn get_rng() -> CountingRng<rand::rngs::StdRng> {
-        let inner = rand::rngs::StdRng::seed_from_u64(123);
+    fn get_rng() -> CountingRng<StdRng> {
+        let inner = StdRng::seed_from_u64(123);
         CountingRng {
             rng: inner,
             count: 0,

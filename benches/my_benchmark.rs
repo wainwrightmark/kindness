@@ -22,9 +22,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             b.iter(|| choose_windowed(black_box(value), 100, &mut rng))
         });
 
-        c.bench_function(format!("choose_unique({value})").as_str(), |b| {
+        c.bench_function(format!("choose_unique_default({value})").as_str(), |b| {
             let mut rng = get_rng(123);
-            b.iter(|| choose_unique(black_box(value), 2, &mut rng))
+            b.iter(|| choose_unique_default(black_box(value), 2, &mut rng))
+        });
+        
+        c.bench_function(format!("choose_unique_ahash({value})").as_str(), |b| {
+            let mut rng = get_rng(123);
+            b.iter(|| choose_unique_ahash(black_box(value), 2, &mut rng))
         });
     }
 }
@@ -48,9 +53,18 @@ fn choose_windowed(max: usize, window: usize, rng: &mut rand::rngs::StdRng) -> u
     range.choose(rng).unwrap()
 }
 
-fn choose_unique(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
+fn choose_unique_default(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
     let range = (0..max).flat_map(|x| std::iter::repeat(x).take(duplicates));
     range.choose_unique(rng).len()
+}
+
+fn choose_unique_ahash(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
+    let range = (0..max).flat_map(|x| std::iter::repeat(x).take(duplicates));
+
+    let hash_builder = hashbrown::hash_map::DefaultHashBuilder::default();
+        let alloc = allocator_api2::alloc::Global;
+
+    range.choose_unique_with_hasher_in(rng, hash_builder, alloc).len()
 }
 
 fn get_rng(seed: u64) -> rand::rngs::StdRng {
