@@ -14,9 +14,6 @@ categories = [
 license = "MIT"
 edition = "2021"
 exclude = [
-    # (optional) list any files we don't want to publish to crates.io
-    # for example, assume the below is a folder which contains large `mp4` files:
-    #   "examples/assets"
 ]
 
 # See here for more info: https://blog.rust-lang.org/2020/03/15/docs-rs-opt-into-fewer-targets.html
@@ -28,7 +25,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hashbrown = "0.14.0"
+allocator-api2 ={version = "0.2.16", optional = true, default-features=false}
+hashbrown = {version = "0.14.0", optional=true, default-features = false, features = ["allocator-api2"]}
 rand = {version = "0.8.5", default-features = false}
 
 [dev-dependencies]
@@ -37,6 +35,8 @@ version-sync = "0.9.4"
 rand = {version = "0.8.5"}
 insta = "1.21.1" # default features needed for testing
 criterion = "0.5"
+hashbrown = {version = "0.14.0" , default-features = false, features = ["allocator-api2", "ahash"]}
+allocator-api2 ={version = "0.2.16", default-features=false}
 
 [[bench]]
 name = "my_benchmark"
@@ -44,3 +44,4 @@ harness = false
 
 [features]
 std = []
+hashbrown =["dep:hashbrown", "dep:allocator-api2"]

@@ -1,26 +1,28 @@
 #[cfg(any(test, feature = "std"))]
 pub mod iterators {
+    use core::hash::Hash;
     use core::iter::FusedIterator;
+    use hashbrown::hash_map::*;
 
-    pub type Unique<Item> = hashbrown::hash_map::IntoKeys<Item, usize>;
+    pub type Unique<Item, A: allocator_api2::alloc::Allocator + Clone> = IntoKeys<Item, usize, A>;
 
     #[derive(Debug)]
     /// An iterator adapter to filter out duplicate elements by a key.
-    pub struct UniqueByKey<K: Eq + std::hash::Hash, Item> {
-        map: std::collections::hash_map::IntoValues<K, (Item, usize)>,
+    pub struct UniqueByKey<K: Eq + Hash, Item, A: allocator_api2::alloc::Allocator + Clone> {
+        map: IntoValues<K, (Item, usize), A>,
     }
 
-    impl<K: Eq + std::hash::Hash, Item> UniqueByKey<K, Item> {
-        pub fn new(map: std::collections::hash_map::IntoValues<K, (Item, usize)>) -> Self {
+    impl<K: Eq + Hash, Item, A: allocator_api2::alloc::Allocator + Clone> UniqueByKey<K, Item, A> {
+        pub fn new(map: IntoValues<K, (Item, usize), A>) -> Self {
             Self { map }
         }
     }
 
-    impl<K: Eq + std::hash::Hash, Item> ExactSizeIterator for UniqueByKey<K, Item> {}
+    impl<K: Eq + Hash, Item, A: allocator_api2::alloc::Allocator + Clone> ExactSizeIterator for UniqueByKey<K, Item, A> {}
 
-    impl<K: Eq + std::hash::Hash, Item> FusedIterator for UniqueByKey<K, Item> {}
+    impl<K: Eq + Hash, Item, A: allocator_api2::alloc::Allocator + Clone> FusedIterator for UniqueByKey<K, Item, A> {}
 
-    impl<K: Eq + std::hash::Hash, Item> Iterator for UniqueByKey<K, Item> {
+    impl<K: Eq + Hash, Item, A: allocator_api2::alloc::Allocator + Clone> Iterator for UniqueByKey<K, Item, A> {
         type Item = Item;
 
         fn next(&mut self) -> Option<Self::Item> {
