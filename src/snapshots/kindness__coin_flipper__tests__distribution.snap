@@ -1,0 +1,16 @@
+---
+source: src/coin_flipper.rs
+expression: distribution
+---
+[
+    991,
+    1009,
+    1096,
+    998,
+    954,
+    972,
+    1020,
+    985,
+    1044,
+    931,
+]
