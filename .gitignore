@@ -19,3 +19,5 @@ Cargo.lock
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+
+lcov.info
