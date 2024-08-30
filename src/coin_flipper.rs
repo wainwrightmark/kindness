@@ -205,3 +205,36 @@ impl<R: RngCore> CoinFlipper<R> {
         }
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use rand::{rngs::StdRng, SeedableRng};
+    use super::CoinFlipper;
+
+    #[test]
+    pub fn test_coin_flipper_gen_index() {
+        let rng = StdRng::seed_from_u64(123);
+        let mut flipper = CoinFlipper::new(rng);
+        let results: Vec<usize> = (0..10000).map(|x| flipper.gen_index(9) as usize).collect();
+        let max  = *results.iter().max().unwrap();
+        let min  = *results.iter().min().unwrap();
+
+        assert!(max <= 9);
+        assert!(min >= 0);
+
+        let mut distribution = [0usize;10];
+        let mut differences: [usize; 19] = [0usize;19];
+        let mut prev = 0;
+        for x in results{
+            distribution[x] +=1;
+            let diff = x + 9 - prev;
+            differences[diff] += 1;
+            prev = x;
+        }
+
+        
+
+        insta::assert_debug_snapshot!("distribution", distribution);
+        insta::assert_debug_snapshot!("differences", differences );
+    }
+}
