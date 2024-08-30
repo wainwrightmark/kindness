@@ -37,10 +37,19 @@ insta = "1" # default features needed for testing
 criterion = "0.5"
 hashbrown = {version = "0.14" , default-features = false, features = ["allocator-api2", "ahash"]}
 allocator-api2 ={version = "0.2", default-features=false}
+iai-callgrind = "0.10.2"
+
 
 [[bench]]
-name = "my_benchmark"
+name = "criterion_benchmark"
 harness = false
+
+[[bench]]
+name = "iai_benchmark"
+harness = false
+
+[profile.bench]
+debug = true
 
 [features]
 std = []
