@@ -3,6 +3,8 @@
 #![deny(missing_docs)]
 #![allow(warnings, dead_code, unused_imports, unused_mut)]
 #![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
 
 //! [![github]](https://github.com/wainwrightmark/kindness)&ensp;[![crates-io]](https://crates.io/crates/kindness)&ensp;[![docs-rs]](https://docs.rs/kindness)
 //!
@@ -417,6 +419,22 @@ mod tests {
     const UPPER_TOLERANCE: usize = 140;
 
     #[test]
+    fn test_choose_max_empty(){
+        let vec: Vec<u8> = vec![];
+        let mut rng = get_rng();
+        let r = vec.into_iter().choose_max(&mut rng);
+        assert_eq!(r, None)        
+    }
+    
+    #[test]
+    fn test_choose_max_by_key_empty(){
+        let vec: Vec<u8> = vec![];
+        let mut rng = get_rng();
+        let r = vec.into_iter().choose_max_by_key(&mut rng, |x|*x);
+        assert_eq!(r, None)        
+    }
+
+    #[test]
     fn test_choose_unique() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];
         let mut rng = get_rng();
@@ -458,6 +476,15 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_choose_item_empty() {
+        let vec: Vec<usize> = vec![];
+        let mut rng = get_rng();
+
+        let item = vec.into_iter().choose_item(&mut rng);
+        assert_eq!(item, None);
+    }
+    
     #[test]
     fn test_random_element_with_size_hint() {
         let mut counts: [usize; LENGTH] = [0; LENGTH];

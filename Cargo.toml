@@ -27,17 +27,16 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 allocator-api2 ={version = "0.2", optional = true, default-features=false}
 hashbrown = {version = "0.14", optional=true, default-features = false, features = ["allocator-api2"]}
-rand = {version = "0.8.5", default-features = false}
+rand = {version = "0.8", default-features = false}
 
 [dev-dependencies]
 # version_sync: to ensure versions in `Cargo.toml` and `README.md` are in sync
 version-sync = "0.9"
-rand = {version = "0.8.5"}
+rand = {version = "0.8"}
 insta = "1" # default features needed for testing
 criterion = "0.5"
 hashbrown = {version = "0.14" , default-features = false, features = ["allocator-api2", "ahash"]}
 allocator-api2 ={version = "0.2", default-features=false}
-iai-callgrind = "0.10.2"
 
 [[bench]]
 name = "criterion_benchmark"
