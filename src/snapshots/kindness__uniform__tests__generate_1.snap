@@ -1,0 +1,8 @@
+---
+source: src/uniform.rs
+expression: summary
+---
+Chi squared: 0.000
+Random values used: 1
+Values:
+10000

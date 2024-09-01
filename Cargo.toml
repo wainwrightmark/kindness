@@ -45,6 +45,10 @@ name = "criterion_benchmark"
 harness = false
 
 [[bench]]
+name = "uniform_benchmark"
+harness = false
+
+[[bench]]
 name = "iai_benchmark"
 harness = false
 

@@ -43,6 +43,8 @@
 
 mod coin_flipper;
 mod unique;
+///Uniform distribution
+pub mod uniform;
 
 use coin_flipper::CoinFlipper;
 use core::cmp::Ordering;
@@ -201,6 +203,50 @@ where
             upper = hint.1;
         }
     }
+
+    // /// Collects `amount` values at random from the iterator into a vector.
+    // ///
+    // /// This is equivalent to `choose_multiple_fill` except for the result type.
+    // ///
+    // /// Although the elements are selected randomly, the order of elements in
+    // /// the buffer is neither stable nor fully random. If random ordering is
+    // /// desired, shuffle the result.
+    // ///
+    // /// The length of the returned vector equals `amount` unless the iterator
+    // /// contains insufficient elements, in which case it equals the number of
+    // /// elements available.
+    // ///
+    // /// Complexity is `O(n)` where `n` is the length of the iterator.
+    // /// For slices, prefer [`SliceRandom::choose_multiple`].
+    // #[cfg(feature = "std")]
+    // fn choose_multiple<R>(mut self, rng: &mut R, amount: usize) -> Vec<Self::Item>
+    // where R: Rng + ?Sized {
+    //     todo!()
+    //     // let mut reservoir = Vec::with_capacity(amount);
+    //     // reservoir.extend(self.by_ref().take(amount));
+
+    //     // // Continue unless the iterator was exhausted
+    //     // //
+    //     // // note: this prevents iterators that "restart" from causing problems.
+    //     // // If the iterator stops once, then so do we.
+    //     // if reservoir.len() == amount {
+
+    //     //     let coin_flipper = CoinFlipper::new(rng);
+    //     //     //coin_flipper.rng
+
+    //     //     for (i, elem) in self.enumerate() {
+    //     //         let k = gen_index(rng, i + 1 + amount);
+    //     //         if let Some(slot) = reservoir.get_mut(k) {
+    //     //             *slot = elem;
+    //     //         }
+    //     //     }
+    //     // } else {
+    //     //     // Don't hang onto extra memory. There is a corner case where
+    //     //     // `amount` was much less than `self.len()`.
+    //     //     reservoir.shrink_to_fit();
+    //     // }
+    //     // reservoir
+    // }
 
     /// Returns a random maximum element with respect to the specified comparison function.
     ///

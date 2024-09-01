@@ -1,0 +1,15 @@
+---
+source: src/uniform.rs
+expression: summary
+---
+Chi squared: 5.888
+Random values used: 1000
+Values:
+1309
+1240
+1263
+1223
+1272
+1258
+1207
+1228
