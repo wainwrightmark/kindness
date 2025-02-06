@@ -61,7 +61,7 @@ fn choose_unique_default(max: usize, duplicates: usize, rng: &mut rand::rngs::St
 fn choose_unique_ahash(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
     let range = (0..max).flat_map(|x| std::iter::repeat(x).take(duplicates));
 
-    let hash_builder = hashbrown::hash_map::DefaultHashBuilder::default();
+    let hash_builder = core::hash::BuildHasherDefault::<ahash::AHasher>::default();
         let alloc = allocator_api2::alloc::Global;
 
     range.choose_unique_with_hasher_in(rng, hash_builder, alloc).len()

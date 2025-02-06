@@ -360,27 +360,36 @@ where
     where
         Self::Item: Hash + Eq,
     {
-        use hashbrown::{hash_map::Entry, HashMap};
-        let mut map: HashMap<Self::Item, usize, S, A> =
-            HashMap::with_hasher_in(hash_builder, alloc);
+        use hashbrown::{hash_map::Entry, HashTable};
+        let mut table: HashTable<(Self::Item, usize), A> =
+        HashTable::new_in(alloc);
         let mut coin_flipper = CoinFlipper::new(rng);
         for item in self {
-            match map.entry(item) {
-                Entry::Occupied(mut o) => {
-                    let new_count = o.get() + 1;
-                    *o.get_mut() = new_count;
+
+            let hash = hash_builder.hash_one(&item);
+
+            let entry = table.entry(hash, |(other, _)| item.eq(other), |(i,_)| hash_builder.hash_one(i));
+
+            match entry{
+                hashbrown::hash_table::Entry::Occupied(mut occupied_entry) => {
+                    let new_count = occupied_entry.get().1+ 1;
+                    occupied_entry.get_mut().1 = new_count;
+
                     if coin_flipper.gen_ratio_one_over(new_count) {
-                        //We have randomly decided to change the key
-                        o.replace_key();
+                        //We have randomly decided to change the key to the new item
+                        occupied_entry.get_mut().0 = item;
                     }
-                }
-                Entry::Vacant(v) => {
-                    v.insert(1);
-                }
+                },
+                hashbrown::hash_table::Entry::Vacant(vacant_entry) => {
+                    vacant_entry.insert((item, 1));
+                },
             }
         }
 
-        map.into_keys()
+        let iter = table.into_iter();
+        unique::iterators::Unique::new(iter)
+
+
     }
     /// Returns an iterator over unique elements of this iterator.    
     /// Elements are chosen randomly from the duplicates.
@@ -435,6 +444,8 @@ where
                 }
             }
         }
+
+
 
         unique::iterators::UniqueByKey::new(map.into_values())
     }

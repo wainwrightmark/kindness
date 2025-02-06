@@ -9,7 +9,12 @@ Possible header types:
 - `Bug Fixes` for any bug fixes.
 - `Breaking Changes` for any backwards-incompatible changes.#
 
+## v0.5.0 (2024-02-06)
+
+- Bumped Hashbrown to 0.15
+
 ## v0.4.0 (2022-12-12)
+
 - Add `std` feature
 - Add `choose-unique()` and `choose_unique_by_key()` behind the std feature
 - Performance improvements
@@ -18,12 +23,9 @@ Possible header types:
 
 - Use a different method to perform comparisons, improving performance for long iterators.
 
-[crates.io]: https://crates.io/crates/kindness
 ## v0.2.0 (2022-11-16)
 
 - Renamed `random_max` etc. to `choose_max`
-
-[crates.io]: https://crates.io/crates/kindness
 
 ## v0.1.0 (2022-11-15)
 

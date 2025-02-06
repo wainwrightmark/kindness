@@ -5,96 +5,101 @@ use core::{
 
 use rand::{Rng, RngCore};
 
-/// A uniform distribution
+/// A uniform distribution where n is a power of two
 #[derive(Debug, Clone, Copy)]
-pub enum Uniform {
+pub struct PowerOfTwo{
+    bits: u32,
     ///
-    PowerOfTwo {
-        ///
-        bits: u32,
-        ///
-        mask: u32,
-        ///
-        counter: u32,
-        ///
-        chunk: u32,
-    },
+    mask: u32,
     ///
-    Other {
-        ///
-        inclusive_upper: u32,
-        ///
-        max_count: u32,
-        ///
-        counter: u32,
-        ///
-        chunk: u32,
-        ///
-        n: NonZero<u32>,
-    },
+    counter: u32,
+    ///
+    chunk: u32,
 }
 
-impl Uniform {
-    /// Generate the next random value in 0..n
+/// A uniform distribution where n is not a power of two
+#[derive(Debug, Clone, Copy)]
+pub struct NonPowerOfTwo {
+    ///
+    inclusive_upper: u32,
+    ///
+    max_count: u32,
+    ///
+    counter: u32,
+    ///
+    chunk: u32,
+    ///
+    n: NonZero<u32>,
+}
+
+impl PowerOfTwo{
+    /// Get the next random value in 0..n
     pub fn next(&mut self, rng: &mut impl Rng) -> u32 {
-        match self {
-            Uniform::PowerOfTwo {
-                bits,
-                mask,
-                counter,
-                chunk,
-            } => {
-                if let Some(new_count) = (*counter).checked_sub(*bits) {
-                    *counter = new_count;
-                } else {
-                    *chunk = rng.next_u32();
-                    *counter = u32::BITS - *bits;
-                }
+        if let Some(new_count) = (self.counter).checked_sub(self.bits) {
+            self.counter = new_count;
+        } else {
+            self.chunk = rng.next_u32();
+            self.counter = u32::BITS - self.bits;
+        }
 
-                let value = *chunk & *mask;
-                *chunk = *chunk >> *bits;
-                value
-            }
-            Uniform::Other {
-                inclusive_upper,
-                max_count,
-                counter,
-                chunk,
-                n,
-            } => {
-                if let Some(new_count) = (*counter).checked_sub(1) {
-                    *counter = new_count;
-                } else {
-                    *counter = *max_count;
-                    'random: loop {
-                        let next = rng.next_u32() >> inclusive_upper.leading_zeros() ;
-                        if next <= *inclusive_upper {
-                            *chunk = next;
-                            break 'random;
-                        }
-                    }
-                }
+        let value = self.chunk & self.mask;
+        self.chunk = self.chunk >> self.bits;
+        value
+    }
+}
 
-                let value = *chunk % *n;
-                *chunk = *chunk / *n;
-                value
+
+impl NonPowerOfTwo{
+    /// Get the next random value in 0..n
+    pub fn next(&mut self, rng: &mut impl Rng)-> u32{
+        if let Some(new_count) = (self.counter).checked_sub(1) {
+            self.counter = new_count;
+        } else {
+            self.counter = self.max_count;
+            'random: loop {
+                let next = rng.next_u32() >> self.inclusive_upper.leading_zeros() ;
+                if next <= self.inclusive_upper {
+                    self.chunk = next;
+                    break 'random;
+                }
             }
         }
-    }
 
-    /// Generate a new Uniform distribution
-    pub fn new(n: NonZeroU32) -> Self {
+        let value = self.chunk % self.n;
+        self.chunk = self.chunk / self.n;
+        value
+    }
+}
+
+///Uniform Distribution
+pub enum Uniform{
+    ///
+    PowerOfTwo(PowerOfTwo),
+    ///
+    NonPowerOfTwo(NonPowerOfTwo)
+}
+
+impl Uniform{
+    /// Get the next random value in 0..n
+    pub fn next(&mut self, rng: &mut impl Rng)-> u32{
+        match self {
+            Uniform::PowerOfTwo(x) => x.next(rng),
+            Uniform::NonPowerOfTwo(x) => x.next(rng),
+        }
+    }
+    ///Create a new uniform distribution
+    pub fn new(n: NonZeroU32)-> Self{
         let u = n.get();
         if u.is_power_of_two() {
             let bits = u.trailing_zeros();
-            let mask = u32::MAX >> (u32::BITS - bits);
+            let mask = u32::MAX.checked_shr(u32::BITS - bits).unwrap_or_default();
 
-            Self::PowerOfTwo {
+            Self::PowerOfTwo(PowerOfTwo {
                 bits,
                 mask,
                 counter: 0,
                 chunk: 0,
-            }
+             })
         } else {
             let bits_used = u32::BITS - u.leading_zeros();
             let log_floor = u32::BITS / bits_used;
@@ -109,22 +114,23 @@ impl Uniform {
                     break 'count_up;
                 }
             }
-            Self::Other {
-                inclusive_upper,
+            Self::NonPowerOfTwo(NonPowerOfTwo {inclusive_upper,
                 max_count,
                 counter: 0,
                 chunk: 0,
-                n,
-            }
+                n, })
         }
     }
 }
+
+
+
 
 #[cfg(test)]
 mod tests {
     use core::{fmt::Write, num::NonZeroU32};
 
-    use hashbrown::raw::Bucket;
+
     use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 
     use crate::uniform::Uniform;
