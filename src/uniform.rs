@@ -240,10 +240,5 @@ mod tests {
             self.count += 1;
             self.rng.fill_bytes(dest)
         }
-
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-            self.count += 1;
-            self.rng.try_fill_bytes(dest)
-        }
     }
 }

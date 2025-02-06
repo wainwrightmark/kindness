@@ -27,12 +27,12 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 allocator-api2 ={version = "0.2", optional = true, default-features=false}
 hashbrown = {version = "0.15", optional=true, default-features = false, features = ["allocator-api2"]}
-rand = {version = "0.8", default-features = false}
+rand = {version = "0.9", default-features = false}
 
 [dev-dependencies]
 # version_sync: to ensure versions in `Cargo.toml` and `README.md` are in sync
 version-sync = "0.9"
-rand = {version = "0.8"}
+rand = {version = "0.9"}
 insta = "1" # default features needed for testing
 criterion = "0.5"
 hashbrown = {version = "0.15" , default-features = false, features = ["allocator-api2", "default-hasher"]}
