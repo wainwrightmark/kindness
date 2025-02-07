@@ -11,7 +11,6 @@ Includes `choose_item()`, `choose_max()`, `choose_max_by()`, `choose_max_by_key(
 
 `no_std` by default. The `std` feature unlocks the `choose_unique()` and `choose_unique_by_key()` methods.
 
-
 The name of the crate is a pun. "Random max of kindness". I'm sorry.
 
 ---
@@ -20,8 +19,8 @@ This crate works with Cargo with a `Cargo.toml` like:
 
 ```toml
 [dependencies]
-kindness = "0.4.0"
-rand = "0.8.5"
+kindness = "0.5.0"
+rand = "0.9.0"
 ```
 
 ## Getting started

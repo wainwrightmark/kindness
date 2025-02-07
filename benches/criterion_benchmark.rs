@@ -31,6 +31,16 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let mut rng = get_rng(123);
             b.iter(|| choose_unique_ahash(black_box(value), 2, &mut rng))
         });
+
+        c.bench_function(format!("choose_unique_by_key_default({value})").as_str(), |b| {
+            let mut rng = get_rng(123);
+            b.iter(|| choose_unique_by_key_default(black_box(value), 2, &mut rng))
+        });
+
+        c.bench_function(format!("choose_unique_by_key_ahash({value})").as_str(), |b| {
+            let mut rng = get_rng(123);
+            b.iter(|| choose_unique_by_key_ahash(black_box(value), 2, &mut rng))
+        });
     }
 }
 
@@ -65,6 +75,21 @@ fn choose_unique_ahash(max: usize, duplicates: usize, rng: &mut rand::rngs::StdR
         let alloc = allocator_api2::alloc::Global;
 
     range.choose_unique_with_hasher_in(rng, hash_builder, alloc).len()
+}
+
+
+fn choose_unique_by_key_default(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
+    let range = (0..max).flat_map(|x| std::iter::repeat(x).take(duplicates));
+    range.choose_unique_by_key(rng, |x|*x).len()
+}
+
+fn choose_unique_by_key_ahash(max: usize, duplicates: usize, rng: &mut rand::rngs::StdRng) -> usize {
+    let range = (0..max).flat_map(|x| std::iter::repeat(x).take(duplicates));
+
+    let hash_builder = core::hash::BuildHasherDefault::<ahash::AHasher>::default();
+        let alloc = allocator_api2::alloc::Global;
+
+    range.choose_unique_by_key_with_hasher_in(rng, |x|*x, hash_builder, alloc).len()
 }
 
 fn get_rng(seed: u64) -> rand::rngs::StdRng {

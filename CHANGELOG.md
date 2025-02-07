@@ -11,6 +11,7 @@ Possible header types:
 
 ## v0.5.0 (2024-02-06)
 
+- Bumped rand to 0.9. This has led to a change in reproducibility for `choose_item`. Also, choose item is no longer necessary as `rand` has now incorporated its performance improvements into `choose`.
 - Bumped Hashbrown to 0.15
 
 ## v0.4.0 (2022-12-12)
